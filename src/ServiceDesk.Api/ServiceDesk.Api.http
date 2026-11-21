@@ -1,4 +1,5 @@
 @baseUrl = http://localhost:5018
+@ticketId = 1
 
 ### Create a ticket
 POST {{baseUrl}}/api/tickets
@@ -12,8 +13,8 @@ Content-Type: application/json
 ### List tickets
 GET {{baseUrl}}/api/tickets
 
-### Get a ticket by ID
-GET {{baseUrl}}/api/tickets/1
+### Get a ticket by ID (set ticketId above to the ID from the create response)
+GET {{baseUrl}}/api/tickets/{{ticketId}}
 
 ### Reject a blank title
 POST {{baseUrl}}/api/tickets
