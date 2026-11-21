@@ -1,0 +1,13 @@
+# .NET build output
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio local state
+.vs/
+*.user
+*.suo
+
+# Local environment configuration
+.env
+.env.*
+!.env.example

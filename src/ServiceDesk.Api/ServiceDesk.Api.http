@@ -1,0 +1,28 @@
+@baseUrl = http://localhost:5018
+
+### Create a ticket
+POST {{baseUrl}}/api/tickets
+Content-Type: application/json
+
+{
+  "title": "Printer is offline",
+  "description": "The printer on floor 2 stopped responding."
+}
+
+### List tickets
+GET {{baseUrl}}/api/tickets
+
+### Get a ticket by ID
+GET {{baseUrl}}/api/tickets/1
+
+### Reject a blank title
+POST {{baseUrl}}/api/tickets
+Content-Type: application/json
+
+{
+  "title": " ",
+  "description": "The printer on floor 2 stopped responding."
+}
+
+### Request a missing ticket
+GET {{baseUrl}}/api/tickets/9999
