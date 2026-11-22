@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, inject, signal } from '@angular/core';
+import { afterNextRender, Component, computed, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Category, ServiceDeskApi, Session, Ticket } from './service-desk-api';
 import { trimmedRequired } from './trimmed-required';
@@ -17,6 +17,8 @@ const defaultFilters = { search: '', status: '', categoryId: '', sort: 'newest' 
 export class App {
   private readonly api = inject(ServiceDeskApi);
   private readonly forms = inject(NonNullableFormBuilder);
+  private readonly injector = inject(Injector);
+  private readonly editTitle = viewChild<ElementRef<HTMLInputElement>>('editTitle');
   private ticketRequest = 0;
 
   protected readonly mode = signal<AuthMode>('sign-in');
@@ -29,6 +31,10 @@ export class App {
   protected readonly authBusy = signal(false);
   protected readonly loadingTickets = signal(false);
   protected readonly savingTicket = signal(false);
+  protected readonly savingEdit = signal(false);
+  protected readonly editingTicketId = signal<number | null>(null);
+  protected readonly updatedTicketId = signal<number | null>(null);
+  protected readonly editError = signal('');
   protected readonly authError = signal('');
   protected readonly queueError = signal('');
   protected readonly categoryError = signal('');
@@ -45,6 +51,12 @@ export class App {
     categoryId: [''],
   });
   protected readonly filters = this.forms.group(defaultFilters);
+  protected readonly editForm = this.forms.group({
+    title: ['', [trimmedRequired, Validators.maxLength(150)]],
+    description: ['', [trimmedRequired, Validators.maxLength(2000)]],
+    categoryId: [''],
+    status: this.forms.control<Ticket['status']>('Open', Validators.required),
+  });
   protected readonly statuses = ['Open', 'In Progress', 'Resolved'] as const;
 
   protected setMode(mode: AuthMode): void {
@@ -103,6 +115,9 @@ export class App {
     this.createdTicketId.set(null);
     this.loadingTickets.set(false);
     this.savingTicket.set(false);
+    this.savingEdit.set(false);
+    this.cancelEdit();
+    this.updatedTicketId.set(null);
     this.setMode('sign-in');
   }
 
@@ -161,6 +176,54 @@ export class App {
   protected categoryName(id: number | null): string {
     if (id === null) return 'Uncategorized';
     return this.categories().find(category => category.id === id)?.name ?? 'Category #' + id;
+  }
+
+  protected startEditing(ticket: Ticket): void {
+    this.editForm.reset({
+      title: ticket.title,
+      description: ticket.description,
+      categoryId: ticket.categoryId?.toString() ?? '',
+      status: ticket.status,
+    });
+    this.updatedTicketId.set(null);
+    this.editError.set('');
+    this.editingTicketId.set(ticket.id);
+    afterNextRender(() => this.editTitle()?.nativeElement.focus(), { injector: this.injector });
+  }
+
+  protected cancelEdit(): void {
+    this.editingTicketId.set(null);
+    this.editError.set('');
+    this.editForm.reset();
+  }
+
+  protected async saveEdit(): Promise<void> {
+    this.editForm.markAllAsTouched();
+    const session = this.session();
+    const id = this.editingTicketId();
+    if (!session || !this.isAdmin() || id === null || this.editForm.invalid || this.savingEdit()) return;
+
+    this.savingEdit.set(true);
+    this.editError.set('');
+    const draft = this.editForm.getRawValue();
+    try {
+      await this.api.updateTicket(session, id, {
+        title: draft.title.trim(),
+        description: draft.description.trim(),
+        categoryId: draft.categoryId ? Number(draft.categoryId) : null,
+        status: draft.status,
+      });
+      if (this.session() !== session) return;
+      this.cancelEdit();
+      this.updatedTicketId.set(id);
+      void this.loadTickets();
+    } catch (error) {
+      if (this.session() === session && !this.endExpiredSession(error)) {
+        this.editError.set(this.errorMessage(error, 'Could not save the ticket.'));
+      }
+    } finally {
+      if (this.session() === session) this.savingEdit.set(false);
+    }
   }
 
   private async loadCategories(session: Session): Promise<void> {

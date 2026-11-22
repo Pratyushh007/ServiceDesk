@@ -37,7 +37,8 @@ npm run start --prefix src/ServiceDesk.Web
 ```
 
 Open [ServiceDesk in the browser](http://localhost:4200). Create an employee
-account or sign in. You can submit a ticket and use the queue filters. The
+account or sign in. You can submit a ticket and use the queue filters. Admins
+can select **Edit** on a ticket to change its details, category, and status. The
 frontend keeps the access token in memory, so reloading the page requires
 signing in again. The Angular dev server forwards `/api` requests to the
 ASP.NET Core API through `proxy.conf.json`.

@@ -88,6 +88,11 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, UpdateTicketRequest request, CancellationToken cancellationToken)
     {
+        if (request.IncludesCategory && !await ValidateCategoryAsync(request.CategoryId, cancellationToken))
+        {
+            return ValidationProblem(ModelState);
+        }
+
         var title = request.Title.Trim();
         var description = request.Description.Trim();
 
@@ -96,7 +101,9 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
             .ExecuteUpdateAsync(update => update
                 .SetProperty(ticket => ticket.Title, title)
                 .SetProperty(ticket => ticket.Description, description)
-                .SetProperty(ticket => ticket.Status, request.Status), cancellationToken);
+                .SetProperty(ticket => ticket.Status, request.Status)
+                .SetProperty(ticket => ticket.CategoryId,
+                    ticket => request.IncludesCategory ? request.CategoryId : ticket.CategoryId), cancellationToken);
 
         return affectedRows == 0 ? NotFound() : NoContent();
     }

@@ -105,7 +105,10 @@
           </div>
         </form>
 
-        <div aria-live="polite" [attr.aria-busy]="loadingTickets()">
+        @if (updatedTicketId(); as id) {
+          <p class="notice success" role="status">Ticket #{{ id }} was updated.</p>
+        }
+        <div class="queue-results" aria-live="polite" [attr.aria-busy]="loadingTickets()">
           @if (queueError()) {
             <p class="notice error" role="alert">{{ queueError() }}</p>
           } @else if (loadingTickets()) {
@@ -127,6 +130,9 @@
                   <div class="ticket-state">
                     <span class="status" [class.in-progress]="ticket.status === 'In Progress'" [class.resolved]="ticket.status === 'Resolved'">{{ ticket.status }}</span>
                     <time [attr.datetime]="ticket.createdAtUtc">{{ ticket.createdAtUtc | date: 'd MMM yyyy' }}</time>
+                    @if (isAdmin()) {
+                      <button type="button" class="button secondary ticket-edit" [attr.aria-label]="'Edit ticket #' + ticket.id" [disabled]="editingTicketId() !== null" (click)="startEditing(ticket)">Edit</button>
+                    }
                   </div>
                 </li>
               }
@@ -136,6 +142,40 @@
       </section>
 
       <section class="panel create-panel" aria-labelledby="create-heading">
+        @if (editingTicketId(); as id) {
+          <div class="panel-heading"><h2 id="create-heading">Edit ticket #{{ id }}</h2></div>
+          <form [formGroup]="editForm" (ngSubmit)="saveEdit()" novalidate>
+            <label for="edit-title">Title</label>
+            <input #editTitle id="edit-title" type="text" maxlength="150" formControlName="title" [attr.aria-invalid]="editForm.controls.title.touched && editForm.controls.title.invalid" [attr.aria-describedby]="editForm.controls.title.touched && editForm.controls.title.invalid ? 'edit-title-error' : null" />
+            @if (editForm.controls.title.touched && editForm.controls.title.invalid) {
+              <span class="field-error" id="edit-title-error">Enter a title with at least one non-space character.</span>
+            }
+            <label for="edit-description">Description</label>
+            <textarea id="edit-description" rows="5" maxlength="2000" formControlName="description" [attr.aria-invalid]="editForm.controls.description.touched && editForm.controls.description.invalid" [attr.aria-describedby]="editForm.controls.description.touched && editForm.controls.description.invalid ? 'edit-description-error' : null"></textarea>
+            @if (editForm.controls.description.touched && editForm.controls.description.invalid) {
+              <span class="field-error" id="edit-description-error">Enter a description with at least one non-space character.</span>
+            }
+            <label for="edit-status">Status</label>
+            <select id="edit-status" formControlName="status">
+              @for (status of statuses; track status) { <option [value]="status">{{ status }}</option> }
+            </select>
+            <label for="edit-category">Category</label>
+            <select id="edit-category" formControlName="categoryId" [attr.disabled]="categories().length === 0 ? '' : null">
+              <option value="">Uncategorized</option>
+              @if (categories().length === 0 && editForm.controls.categoryId.value) {
+                <option [value]="editForm.controls.categoryId.value">Category #{{ editForm.controls.categoryId.value }}</option>
+              }
+              @for (category of categories(); track category.id) { <option [value]="category.id">{{ category.name }}</option> }
+            </select>
+            @if (editError()) {
+              <p class="notice error" role="alert">{{ editError() }}</p>
+            }
+            <div class="edit-actions">
+              <button type="submit" class="button primary" [disabled]="savingEdit()">{{ savingEdit() ? 'Saving…' : 'Save changes' }}</button>
+              <button type="button" class="button quiet" [disabled]="savingEdit()" (click)="cancelEdit()">Cancel</button>
+            </div>
+          </form>
+        } @else {
         <div class="panel-heading"><h2 id="create-heading">New ticket</h2></div>
         <form [formGroup]="ticketForm" (ngSubmit)="submitTicket()" novalidate>
           <label for="title">Title</label>
@@ -166,6 +206,7 @@
             {{ savingTicket() ? 'Submitting…' : 'Submit ticket' }}
           </button>
         </form>
+        }
       </section>
     </div>
   </main>
