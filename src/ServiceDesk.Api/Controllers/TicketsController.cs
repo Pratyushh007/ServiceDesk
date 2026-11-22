@@ -11,12 +11,37 @@ namespace ServiceDesk.Api.Controllers;
 public sealed class TicketsController(ServiceDeskDbContext database) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<Ticket[]>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<Ticket[]>> GetAll(
+        [FromQuery] TicketListQuery filters, CancellationToken cancellationToken)
     {
-        return await database.Tickets
-            .AsNoTracking()
-            .OrderBy(ticket => ticket.Id)
-            .ToArrayAsync(cancellationToken);
+        var tickets = database.Tickets.AsNoTracking();
+
+        var search = filters.Search?.Trim();
+        if (!string.IsNullOrEmpty(search))
+        {
+            tickets = tickets.Where(ticket =>
+                ticket.Title.Contains(search) || ticket.Description.Contains(search));
+        }
+
+        if (filters.Status is { } status)
+        {
+            tickets = tickets.Where(ticket => ticket.Status == status);
+        }
+
+        if (filters.CategoryId is { } categoryId)
+        {
+            tickets = tickets.Where(ticket => ticket.CategoryId == categoryId);
+        }
+
+        var sortedTickets = filters.Sort switch
+        {
+            "newest" => tickets.OrderByDescending(ticket => ticket.CreatedAtUtc).ThenByDescending(ticket => ticket.Id),
+            "oldest" => tickets.OrderBy(ticket => ticket.CreatedAtUtc).ThenBy(ticket => ticket.Id),
+            "title" => tickets.OrderBy(ticket => ticket.Title).ThenBy(ticket => ticket.Id),
+            _ => tickets.OrderBy(ticket => ticket.Id)
+        };
+
+        return await sortedTickets.ToArrayAsync(cancellationToken);
     }
 
     [HttpGet("{id:int}")]

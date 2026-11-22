@@ -1,0 +1,20 @@
+@baseUrl = http://localhost:5018
+@networkCategoryId = 2
+
+### List all tickets by ID
+GET {{baseUrl}}/api/tickets
+
+### Search titles and descriptions
+GET {{baseUrl}}/api/tickets?search=VPN
+
+### Filter to tickets in progress
+GET {{baseUrl}}/api/tickets?status=In%20Progress
+
+### Find open network tickets that mention VPN, newest first
+GET {{baseUrl}}/api/tickets?search=VPN&status=Open&categoryId={{networkCategoryId}}&sort=newest
+
+### Sort ticket titles alphabetically
+GET {{baseUrl}}/api/tickets?sort=title
+
+### Verify an unsupported sort returns 400
+GET {{baseUrl}}/api/tickets?sort=unknown

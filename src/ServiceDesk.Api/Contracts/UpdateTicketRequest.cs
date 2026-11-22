@@ -14,7 +14,7 @@ public sealed class UpdateTicketRequest
     public string Description { get; init; } = string.Empty;
 
     [Required]
-    [AllowedValues(Ticket.OpenStatus, "In Progress", "Resolved",
+    [AllowedValues(Ticket.OpenStatus, Ticket.InProgressStatus, Ticket.ResolvedStatus,
         ErrorMessage = "Status must be Open, In Progress, or Resolved.")]
     public string Status { get; init; } = string.Empty;
 }
