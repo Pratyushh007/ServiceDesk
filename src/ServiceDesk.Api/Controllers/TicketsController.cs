@@ -186,7 +186,13 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
             .Select(item => new TicketStatusChangeResponse(item.Id, item.PreviousStatus, item.Status, item.ChangedAtUtc))
             .ToArrayAsync(cancellationToken);
 
-        return new TicketActivityResponse(comments, statusChanges);
+        var attachments = await database.TicketAttachments
+            .Where(item => item.TicketId == id)
+            .OrderBy(item => item.Id)
+            .Select(item => new TicketAttachmentResponse(item.Id, item.FileName, item.SizeBytes, item.CreatedAtUtc))
+            .ToArrayAsync(cancellationToken);
+
+        return new TicketActivityResponse(comments, statusChanges, attachments);
     }
 
     [HttpPost("{id:int}/comments")]
@@ -222,6 +228,98 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         return StatusCode(StatusCodes.Status201Created,
             new TicketCommentResponse(comment.Id, comment.Body, comment.IsStaff, comment.CreatedAtUtc));
     }
+
+    [HttpPost("{id:int}/attachments")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(TicketAttachment.MaxRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = TicketAttachment.MaxRequestBytes)]
+    public async Task<ActionResult<TicketAttachmentResponse>> AddAttachment(
+        int id, [FromForm] IFormFile? file, CancellationToken cancellationToken)
+    {
+        if (!await VisibleTickets().AnyAsync(ticket => ticket.Id == id, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        if (file is null || file.Length is <= 0 or > TicketAttachment.MaxBytes)
+        {
+            return InvalidAttachment("Choose a non-empty file up to 5 MB.");
+        }
+
+        var fileName = Path.GetFileName(file.FileName.Replace('\\', '/')).Trim();
+        if (fileName.Length is 0 or > TicketAttachment.FileNameMaxLength || fileName.Any(char.IsControl))
+        {
+            return InvalidAttachment("Use a file name between 1 and 180 characters.");
+        }
+
+        using var buffer = new MemoryStream((int)file.Length);
+        await file.CopyToAsync(buffer, cancellationToken);
+        var content = buffer.ToArray();
+        var contentType = AttachmentContentType(Path.GetExtension(fileName), content);
+        if (contentType is null)
+        {
+            return InvalidAttachment("Choose a PNG, JPEG, or PDF file with a matching extension.");
+        }
+
+        var attachment = new TicketAttachment
+        {
+            TicketId = id,
+            UploadedById = CurrentUserId,
+            FileName = fileName,
+            ContentType = contentType,
+            Content = content,
+            SizeBytes = content.Length
+        };
+        database.TicketAttachments.Add(attachment);
+        try
+        {
+            await database.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 547 })
+        {
+            if (!await VisibleTickets().AnyAsync(ticket => ticket.Id == id, cancellationToken))
+            {
+                return NotFound();
+            }
+            throw;
+        }
+
+        return CreatedAtAction(nameof(DownloadAttachment), new { id, attachmentId = attachment.Id },
+            new TicketAttachmentResponse(attachment.Id, attachment.FileName, attachment.SizeBytes, attachment.CreatedAtUtc));
+    }
+
+    [HttpGet("{id:int}/attachments/{attachmentId:int}")]
+    public async Task<IActionResult> DownloadAttachment(int id, int attachmentId, CancellationToken cancellationToken)
+    {
+        var visibleTicket = VisibleTickets().Where(ticket => ticket.Id == id);
+        var attachment = await database.TicketAttachments
+            .AsNoTracking()
+            .SingleOrDefaultAsync(item => item.TicketId == id && item.Id == attachmentId && visibleTicket.Any(),
+                cancellationToken);
+        if (attachment is null)
+        {
+            return NotFound();
+        }
+
+        Response.Headers.CacheControl = "private, no-store";
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        return File(attachment.Content, attachment.ContentType, attachment.FileName);
+    }
+
+    private ActionResult InvalidAttachment(string message)
+    {
+        ModelState.AddModelError("file", message);
+        return ValidationProblem(ModelState);
+    }
+
+    private static string? AttachmentContentType(string extension, ReadOnlySpan<byte> content) =>
+        extension.ToLowerInvariant() switch
+        {
+            ".png" when content.StartsWith(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }) => "image/png",
+            ".jpg" or ".jpeg" when content.StartsWith(new byte[] { 0xFF, 0xD8, 0xFF }) => "image/jpeg",
+            ".pdf" when content.StartsWith("%PDF-"u8) => "application/pdf",
+            _ => null
+        };
 
     private string CurrentUserId => User.FindFirstValue(JwtRegisteredClaimNames.Sub)!;
 

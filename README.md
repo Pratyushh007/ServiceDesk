@@ -39,7 +39,8 @@ npm run start --prefix src/ServiceDesk.Web
 Open [ServiceDesk in the browser](http://localhost:4200). Create an employee
 account or sign in. You can submit a ticket and use the queue filters. Admins
 can select **Edit** on a ticket to change its details, category, and status.
-Select **Activity** to see the ticket's status history and post comments. The
+Select **Activity** to see the ticket's status history, post comments, and
+attach or download a PNG, JPEG, or PDF file up to 5 MB. The
 admin **Dashboard** shows status and category counts. Selecting a status card
 opens the matching queue. On the new-ticket form, selecting **Network & VPN**
 reveals an optional connection type that is saved with the description. The

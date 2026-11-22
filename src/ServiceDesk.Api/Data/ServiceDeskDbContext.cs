@@ -12,6 +12,7 @@ public sealed class ServiceDeskDbContext(DbContextOptions<ServiceDeskDbContext> 
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
     public DbSet<TicketStatusChange> TicketStatusChanges => Set<TicketStatusChange>();
+    public DbSet<TicketAttachment> TicketAttachments => Set<TicketAttachment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,6 +45,12 @@ public sealed class ServiceDeskDbContext(DbContextOptions<ServiceDeskDbContext> 
         change.Property(item => item.Status).HasMaxLength(32);
         change.HasOne(item => item.Ticket).WithMany().HasForeignKey(item => item.TicketId).OnDelete(DeleteBehavior.Cascade);
         change.HasOne<IdentityUser>().WithMany().HasForeignKey(item => item.ChangedById).OnDelete(DeleteBehavior.Restrict);
+
+        var attachment = modelBuilder.Entity<TicketAttachment>();
+        attachment.Property(item => item.FileName).HasMaxLength(TicketAttachment.FileNameMaxLength);
+        attachment.Property(item => item.ContentType).HasMaxLength(32);
+        attachment.HasOne<Ticket>().WithMany().HasForeignKey(item => item.TicketId).OnDelete(DeleteBehavior.Cascade);
+        attachment.HasOne<IdentityUser>().WithMany().HasForeignKey(item => item.UploadedById).OnDelete(DeleteBehavior.Restrict);
 
         var category = modelBuilder.Entity<Category>();
         category.Property(item => item.Name).HasMaxLength(80);

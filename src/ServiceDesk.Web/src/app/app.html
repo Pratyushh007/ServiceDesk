@@ -193,7 +193,7 @@
         } @else if (activityTicket(); as selected) {
           <div class="panel-heading">
             <h2 #activityHeading id="create-heading" tabindex="-1">Ticket #{{ selected.id }} activity</h2>
-            <button type="button" class="button quiet" [disabled]="postingComment()" (click)="closeActivity()">Close</button>
+            <button type="button" class="button quiet" [disabled]="postingComment() || uploadingAttachment()" (click)="closeActivity()">Close</button>
           </div>
           @if (activityError()) {
             <p class="notice error" role="alert">{{ activityError() }}</p>
@@ -213,6 +213,43 @@
                       </li>
                     }
                   </ol>
+                }
+              </section>
+              <section class="attachments" aria-labelledby="attachments-heading">
+                <h3 id="attachments-heading">Attachments</h3>
+                @if (details.attachments.length === 0) {
+                  <p class="field-help">No files attached.</p>
+                } @else {
+                  <ul class="activity-list">
+                    @for (attachment of details.attachments; track attachment.id) {
+                      <li class="attachment-item">
+                        <div>
+                          <strong>{{ attachment.fileName }}</strong>
+                          <span class="field-help">{{ attachmentSize(attachment.sizeBytes) }}</span>
+                        </div>
+                        <button type="button" class="button quiet"
+                          [attr.aria-label]="'Download ' + attachment.fileName"
+                          [disabled]="downloadingAttachment() !== null" (click)="downloadAttachment(attachment)">
+                          {{ downloadingAttachment() === attachment.id ? 'Downloading…' : 'Download' }}
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                }
+                <div class="attachment-upload">
+                  <label for="attachment">Choose a file</label>
+                  <input #attachmentFile id="attachment" type="file"
+                    accept=".png,.jpg,.jpeg,.pdf" aria-describedby="attachment-help"
+                    [disabled]="uploadingAttachment()" (change)="chooseAttachment(attachmentFile)" />
+                  <p id="attachment-help" class="field-help">PNG, JPEG, or PDF up to 5 MB.</p>
+                  <button type="button" class="button secondary" [disabled]="!selectedAttachment() || uploadingAttachment()"
+                    (click)="uploadAttachment(attachmentFile)">{{ uploadingAttachment() ? 'Uploading…' : 'Attach file' }}</button>
+                </div>
+                @if (attachmentError()) {
+                  <p class="notice error" role="alert">{{ attachmentError() }}</p>
+                }
+                @if (attachmentNotice()) {
+                  <p class="notice success" role="status">{{ attachmentNotice() }}</p>
                 }
               </section>
               <section aria-labelledby="comments-heading">

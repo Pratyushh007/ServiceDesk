@@ -15,4 +15,7 @@ public sealed record TicketCommentResponse(int Id, string Body, bool IsStaff, Da
 public sealed record TicketStatusChangeResponse(
     int Id, string? PreviousStatus, string Status, DateTimeOffset ChangedAtUtc);
 
-public sealed record TicketActivityResponse(TicketCommentResponse[] Comments, TicketStatusChangeResponse[] StatusChanges);
+public sealed record TicketAttachmentResponse(int Id, string FileName, int SizeBytes, DateTimeOffset CreatedAtUtc);
+
+public sealed record TicketActivityResponse(
+    TicketCommentResponse[] Comments, TicketStatusChangeResponse[] StatusChanges, TicketAttachmentResponse[] Attachments);

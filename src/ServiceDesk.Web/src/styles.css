@@ -146,6 +146,20 @@ textarea { resize: vertical; }
 .activity-list time { color: var(--muted); }
 .activity-list p { margin-top: .3rem; white-space: pre-wrap; line-height: 1.45; }
 .status-history li { border-left: 2px solid #80b9ac; }
+.attachment-item { display: flex; justify-content: space-between; align-items: center; gap: .4rem; }
+.attachment-item > div { min-width: 0; }
+.attachment-item .field-help { margin-top: .1rem; }
+.attachment-upload { margin-top: .65rem; }
+.attachment-upload .button { margin-top: .55rem; }
+.attachment-upload input[type="file"] { padding: .43rem; }
+.attachment-upload input::file-selector-button {
+  border: 0;
+  border-radius: .28rem;
+  padding: .34rem .48rem;
+  margin-right: .45rem;
+  background: #e7f2ef;
+  color: #14564c;
+}
 
 @media (max-width: 900px) {
   .workspace-grid { grid-template-columns: minmax(0, 1fr) minmax(255px, 300px); gap: .9rem; }

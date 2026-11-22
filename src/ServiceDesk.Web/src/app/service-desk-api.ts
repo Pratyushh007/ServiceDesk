@@ -41,8 +41,16 @@ export interface TicketComment {
   createdAtUtc: string;
 }
 
+export interface TicketAttachment {
+  id: number;
+  fileName: string;
+  sizeBytes: number;
+  createdAtUtc: string;
+}
+
 export interface TicketActivity {
   comments: TicketComment[];
+  attachments: TicketAttachment[];
   statusChanges: {
     id: number;
     previousStatus: Ticket['status'] | null;
@@ -122,6 +130,25 @@ export class ServiceDeskApi {
   addComment(session: Session, id: number, body: string): Promise<TicketComment> {
     return firstValueFrom(
       this.http.post<TicketComment>('/api/tickets/' + id + '/comments', { body }, { headers: this.headers(session) }),
+    );
+  }
+
+  uploadAttachment(session: Session, id: number, file: File): Promise<TicketAttachment> {
+    const form = new FormData();
+    form.set('file', file);
+    return firstValueFrom(
+      this.http.post<TicketAttachment>('/api/tickets/' + id + '/attachments', form, {
+        headers: this.headers(session),
+      }),
+    );
+  }
+
+  downloadAttachment(session: Session, id: number, attachmentId: number): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get('/api/tickets/' + id + '/attachments/' + attachmentId, {
+        headers: this.headers(session),
+        responseType: 'blob',
+      }),
     );
   }
 

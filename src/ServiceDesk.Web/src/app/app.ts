@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { afterNextRender, Component, computed, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Category, DashboardSummary, ServiceDeskApi, Session, Ticket, TicketActivity } from './service-desk-api';
+import { Category, DashboardSummary, ServiceDeskApi, Session, Ticket, TicketActivity, TicketAttachment } from './service-desk-api';
 import { DashboardPanel } from './dashboard-panel';
 import { trimmedRequired } from './trimmed-required';
 
@@ -47,6 +47,11 @@ export class App {
   protected readonly activityError = signal('');
   protected readonly postingComment = signal(false);
   protected readonly commentNotice = signal('');
+  protected readonly selectedAttachment = signal<File | null>(null);
+  protected readonly uploadingAttachment = signal(false);
+  protected readonly downloadingAttachment = signal<number | null>(null);
+  protected readonly attachmentError = signal('');
+  protected readonly attachmentNotice = signal('');
   protected readonly authError = signal('');
   protected readonly queueError = signal('');
   protected readonly categoryError = signal('');
@@ -309,6 +314,11 @@ export class App {
     this.postingComment.set(false);
     this.commentNotice.set('');
     this.commentForm.reset();
+    this.selectedAttachment.set(null);
+    this.uploadingAttachment.set(false);
+    this.downloadingAttachment.set(null);
+    this.attachmentError.set('');
+    this.attachmentNotice.set('');
   }
 
   protected async postComment(): Promise<void> {
@@ -324,7 +334,7 @@ export class App {
     try {
       const comment = await this.api.addComment(session, ticket.id, this.commentForm.controls.body.value.trim());
       if (this.session() !== session || this.activityTicket() !== ticket) return;
-      this.activity.set({ ...activity, comments: [...activity.comments, comment] });
+      this.activity.update(current => current && { ...current, comments: [...current.comments, comment] });
       this.commentForm.reset();
       this.commentNotice.set('Comment posted.');
     } catch (error) {
@@ -334,6 +344,73 @@ export class App {
     } finally {
       if (this.session() === session && this.activityTicket() === ticket) this.postingComment.set(false);
     }
+  }
+
+  protected chooseAttachment(input: HTMLInputElement): void {
+    this.attachmentError.set('');
+    this.attachmentNotice.set('');
+    const file = input.files?.item(0) ?? null;
+    if (file && (file.size === 0 || file.size > 5 * 1024 * 1024)) {
+      this.selectedAttachment.set(null);
+      input.value = '';
+      this.attachmentError.set('Choose a non-empty file up to 5 MB.');
+      return;
+    }
+    this.selectedAttachment.set(file);
+  }
+
+  protected async uploadAttachment(input: HTMLInputElement): Promise<void> {
+    const session = this.session();
+    const ticket = this.activityTicket();
+    const file = this.selectedAttachment();
+    if (!session || !ticket || !file || this.uploadingAttachment()) return;
+
+    this.uploadingAttachment.set(true);
+    this.attachmentError.set('');
+    this.attachmentNotice.set('');
+    try {
+      const attachment = await this.api.uploadAttachment(session, ticket.id, file);
+      if (this.session() !== session || this.activityTicket() !== ticket) return;
+      this.activity.update(current => current && { ...current, attachments: [...current.attachments, attachment] });
+      this.selectedAttachment.set(null);
+      input.value = '';
+      this.attachmentNotice.set('Attachment uploaded.');
+    } catch (error) {
+      if (this.session() === session && this.activityTicket() === ticket && !this.endExpiredSession(error)) {
+        this.attachmentError.set(this.errorMessage(error, 'Could not upload the attachment.'));
+      }
+    } finally {
+      if (this.session() === session && this.activityTicket() === ticket) this.uploadingAttachment.set(false);
+    }
+  }
+
+  protected async downloadAttachment(attachment: TicketAttachment): Promise<void> {
+    const session = this.session();
+    const ticket = this.activityTicket();
+    if (!session || !ticket || this.downloadingAttachment() !== null) return;
+
+    this.downloadingAttachment.set(attachment.id);
+    this.attachmentError.set('');
+    try {
+      const file = await this.api.downloadAttachment(session, ticket.id, attachment.id);
+      if (this.session() !== session || this.activityTicket() !== ticket) return;
+      const url = URL.createObjectURL(file);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = attachment.fileName;
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      if (this.session() === session && this.activityTicket() === ticket && !this.endExpiredSession(error)) {
+        this.attachmentError.set(this.errorMessage(error, 'Could not download the attachment.'));
+      }
+    } finally {
+      if (this.session() === session && this.activityTicket() === ticket) this.downloadingAttachment.set(null);
+    }
+  }
+
+  protected attachmentSize(sizeBytes: number): string {
+    return sizeBytes < 1024 ? sizeBytes + ' B' : (sizeBytes / 1024).toFixed(1) + ' KB';
   }
 
   private async loadCategories(session: Session): Promise<void> {
