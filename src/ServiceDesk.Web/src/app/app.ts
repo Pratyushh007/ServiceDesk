@@ -33,6 +33,8 @@ export class App {
   protected readonly dashboard = signal<DashboardSummary | null>(null);
   protected readonly loadingDashboard = signal(false);
   protected readonly dashboardError = signal('');
+  protected readonly reportPending = signal(false);
+  protected readonly reportError = signal('');
   protected readonly vpnCategoryId = '2';
 
   protected readonly authBusy = signal(false);
@@ -41,6 +43,9 @@ export class App {
   protected readonly savingEdit = signal(false);
   protected readonly editingTicketId = signal<number | null>(null);
   protected readonly updatedTicketId = signal<number | null>(null);
+  protected readonly deletedTicketId = signal<number | null>(null);
+  protected readonly confirmDelete = signal(false);
+  protected readonly deletingTicket = signal(false);
   protected readonly editError = signal('');
   protected readonly activityTicket = signal<Ticket | null>(null);
   protected readonly activity = signal<TicketActivity | null>(null);
@@ -132,6 +137,8 @@ export class App {
     this.dashboard.set(null);
     this.loadingDashboard.set(false);
     this.dashboardError.set('');
+    this.reportPending.set(false);
+    this.reportError.set('');
     this.filters.reset(defaultFilters);
     this.ticketForm.reset();
     this.queueError.set('');
@@ -141,8 +148,10 @@ export class App {
     this.loadingTickets.set(false);
     this.savingTicket.set(false);
     this.savingEdit.set(false);
+    this.deletingTicket.set(false);
     this.cancelEdit();
     this.updatedTicketId.set(null);
+    this.deletedTicketId.set(null);
     this.closeActivity();
     this.setMode('sign-in');
   }
@@ -200,6 +209,36 @@ export class App {
     }
   }
 
+  protected async downloadReport({ from, to }: { from: string; to: string }): Promise<void> {
+    const session = this.session();
+    if (!session || !this.isAdmin() || this.reportPending()) return;
+
+    this.reportError.set('');
+    if (from && to && from > to) {
+      this.reportError.set('The end date must be on or after the start date.');
+      return;
+    }
+
+    this.reportPending.set(true);
+    try {
+      const file = await this.api.ticketReport(session, from, to);
+      if (this.session() === session) this.saveDownload(file, 'service-desk-tickets.xlsx');
+    } catch (error) {
+      if (this.session() !== session || this.endExpiredSession(error)) return;
+
+      let message = 'Could not download the ticket report.';
+      if (error instanceof HttpErrorResponse && error.status === 400 && error.error instanceof Blob) {
+        try {
+          const problem = JSON.parse(await error.error.text()) as { errors?: Record<string, string[]> };
+          message = Object.values(problem.errors ?? {}).flat().join(' ') || message;
+        } catch { /* Keep the download error if the API sends a different response format. */ }
+      }
+      if (this.session() === session) this.reportError.set(message);
+    } finally {
+      if (this.session() === session) this.reportPending.set(false);
+    }
+  }
+
   protected async submitTicket(): Promise<void> {
     this.ticketForm.markAllAsTouched();
     const session = this.session();
@@ -248,6 +287,7 @@ export class App {
       status: ticket.status,
     });
     this.updatedTicketId.set(null);
+    this.deletedTicketId.set(null);
     this.editError.set('');
     this.editingTicketId.set(ticket.id);
     afterNextRender(() => this.editTitle()?.nativeElement.focus(), { injector: this.injector });
@@ -256,6 +296,7 @@ export class App {
   protected cancelEdit(): void {
     this.editingTicketId.set(null);
     this.editError.set('');
+    this.confirmDelete.set(false);
     this.editForm.reset();
   }
 
@@ -263,7 +304,7 @@ export class App {
     this.editForm.markAllAsTouched();
     const session = this.session();
     const id = this.editingTicketId();
-    if (!session || !this.isAdmin() || id === null || this.editForm.invalid || this.savingEdit()) return;
+    if (!session || !this.isAdmin() || id === null || this.editForm.invalid || this.savingEdit() || this.confirmDelete()) return;
 
     this.savingEdit.set(true);
     this.editError.set('');
@@ -285,6 +326,29 @@ export class App {
       }
     } finally {
       if (this.session() === session) this.savingEdit.set(false);
+    }
+  }
+
+  protected async deleteTicket(): Promise<void> {
+    const session = this.session();
+    const id = this.editingTicketId();
+    if (!session || !this.isAdmin() || id === null || !this.confirmDelete() || this.deletingTicket()) return;
+
+    this.deletingTicket.set(true);
+    this.editError.set('');
+    try {
+      await this.api.deleteTicket(session, id);
+      if (this.session() !== session) return;
+
+      this.cancelEdit();
+      this.deletedTicketId.set(id);
+      void this.loadTickets();
+    } catch (error) {
+      if (this.session() === session && !this.endExpiredSession(error)) {
+        this.editError.set(this.errorMessage(error, 'Could not delete the ticket. Refresh the queue and try again.'));
+      }
+    } finally {
+      if (this.session() === session) this.deletingTicket.set(false);
     }
   }
 
@@ -394,12 +458,7 @@ export class App {
     try {
       const file = await this.api.downloadAttachment(session, ticket.id, attachment.id);
       if (this.session() !== session || this.activityTicket() !== ticket) return;
-      const url = URL.createObjectURL(file);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = attachment.fileName;
-      anchor.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      this.saveDownload(file, attachment.fileName);
     } catch (error) {
       if (this.session() === session && this.activityTicket() === ticket && !this.endExpiredSession(error)) {
         this.attachmentError.set(this.errorMessage(error, 'Could not download the attachment.'));
@@ -411,6 +470,15 @@ export class App {
 
   protected attachmentSize(sizeBytes: number): string {
     return sizeBytes < 1024 ? sizeBytes + ' B' : (sizeBytes / 1024).toFixed(1) + ' KB';
+  }
+
+  private saveDownload(file: Blob, filename: string): void {
+    const url = URL.createObjectURL(file);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   private async loadCategories(session: Session): Promise<void> {

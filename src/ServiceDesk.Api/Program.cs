@@ -3,12 +3,31 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using ServiceDesk.Api.Auth;
 using ServiceDesk.Api.Data;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSwaggerGen(options =>
+    {
+        options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT"
+        });
+        options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+        });
+        options.OperationFilter<AnonymousSwaggerOperation>();
+    });
+}
 
 var connectionString = builder.Configuration.GetConnectionString("ServiceDesk")
     ?? throw new InvalidOperationException("Configure the ServiceDesk connection string before running the API.");
@@ -51,7 +70,23 @@ if (app.Configuration.GetValue<bool>("seed-admin"))
     return;
 }
 
+if (app.Environment.IsDevelopment())
+{
+    app.MapSwagger().AllowAnonymous();
+    app.UseSwaggerUI();
+}
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.Run();
+
+internal sealed class AnonymousSwaggerOperation : IOperationFilter
+{
+    public void Apply(OpenApiOperation operation, OperationFilterContext context)
+    {
+        if (context.ApiDescription.ActionDescriptor.EndpointMetadata.OfType<IAllowAnonymous>().Any())
+        {
+            operation.Security = [];
+        }
+    }
+}

@@ -12,6 +12,9 @@ export class DashboardPanel {
   readonly error = input('');
   readonly refresh = output<void>();
   readonly viewTickets = output<Ticket['status'] | ''>();
+  readonly reportPending = input(false);
+  readonly reportError = input('');
+  readonly exportReport = output<{ from: string; to: string }>();
 
   protected readonly metrics = computed(() => {
     const summary = this.summary();

@@ -70,6 +70,7 @@
     }
     @if (isAdmin() && adminPage() === 'dashboard') {
       <app-dashboard-panel [summary]="dashboard()" [loading]="loadingDashboard()" [error]="dashboardError()"
+        [reportPending]="reportPending()" [reportError]="reportError()" (exportReport)="downloadReport($event)"
         (refresh)="refreshDashboard()" (viewTickets)="openDashboardTickets($event)" />
     } @else {
     <div class="page-heading">
@@ -120,6 +121,9 @@
         @if (updatedTicketId(); as id) {
           <p class="notice success" role="status">Ticket #{{ id }} was updated.</p>
         }
+        @if (deletedTicketId(); as id) {
+          <p class="notice success" role="status">Ticket #{{ id }} was deleted.</p>
+        }
         <div class="queue-results" aria-live="polite" [attr.aria-busy]="loadingTickets()">
           @if (queueError()) {
             <p class="notice error" role="alert">{{ queueError() }}</p>
@@ -158,7 +162,17 @@
 
       <section class="panel create-panel" aria-labelledby="create-heading">
         @if (editingTicketId(); as id) {
-          <div class="panel-heading"><h2 id="create-heading">Edit ticket #{{ id }}</h2></div>
+          <div class="panel-heading"><h2 id="create-heading">{{ confirmDelete() ? 'Delete' : 'Edit' }} ticket #{{ id }}</h2></div>
+          @if (confirmDelete()) {
+            <p class="field-help">Deleting this ticket permanently removes its comments, status history, and attachments.</p>
+            @if (editError()) {
+              <p class="notice error" role="alert">{{ editError() }}</p>
+            }
+            <div class="edit-actions delete-actions">
+              <button type="button" class="button danger" [disabled]="deletingTicket()" (click)="deleteTicket()">{{ deletingTicket() ? 'Deleting…' : 'Confirm delete' }}</button>
+              <button type="button" class="button quiet" [disabled]="deletingTicket()" (click)="confirmDelete.set(false); editError.set('')">Keep ticket</button>
+            </div>
+          } @else {
           <form [formGroup]="editForm" (ngSubmit)="saveEdit()" novalidate>
             <label for="edit-title">Title</label>
             <input #editTitle id="edit-title" type="text" maxlength="150" formControlName="title" [attr.aria-invalid]="editForm.controls.title.touched && editForm.controls.title.invalid" [attr.aria-describedby]="editForm.controls.title.touched && editForm.controls.title.invalid ? 'edit-title-error' : null" />
@@ -188,8 +202,10 @@
             <div class="edit-actions">
               <button type="submit" class="button primary" [disabled]="savingEdit()">{{ savingEdit() ? 'Saving…' : 'Save changes' }}</button>
               <button type="button" class="button quiet" [disabled]="savingEdit()" (click)="cancelEdit()">Cancel</button>
+              <button type="button" class="button delete-link" [disabled]="savingEdit()" (click)="confirmDelete.set(true); editError.set('')">Delete ticket</button>
             </div>
           </form>
+          }
         } @else if (activityTicket(); as selected) {
           <div class="panel-heading">
             <h2 #activityHeading id="create-heading" tabindex="-1">Ticket #{{ selected.id }} activity</h2>

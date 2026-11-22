@@ -121,6 +121,12 @@ export class ServiceDeskApi {
     );
   }
 
+  deleteTicket(session: Session, id: number): Promise<void> {
+    return firstValueFrom(
+      this.http.delete<void>('/api/tickets/' + id, { headers: this.headers(session) }),
+    );
+  }
+
   activity(session: Session, id: number): Promise<TicketActivity> {
     return firstValueFrom(
       this.http.get<TicketActivity>('/api/tickets/' + id + '/activity', { headers: this.headers(session) }),
@@ -156,6 +162,17 @@ export class ServiceDeskApi {
     return firstValueFrom(
       this.http.get<DashboardSummary>('/api/dashboard/summary', { headers: this.headers(session) }),
     );
+  }
+
+  ticketReport(session: Session, from: string, to: string): Promise<Blob> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return firstValueFrom(this.http.get('/api/reports/tickets.xlsx', {
+      params,
+      headers: this.headers(session),
+      responseType: 'blob',
+    }));
   }
 
   private headers(session: Session): Record<string, string> {

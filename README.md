@@ -1,13 +1,15 @@
 # ServiceDesk
 
-ServiceDesk is an IT ticket management application. Its ASP.NET Core API stores
-tickets, categories, and accounts in SQL Server through Entity Framework Core.
+ServiceDesk is an IT ticket management application with an Angular frontend,
+an ASP.NET Core API, and SQL Server persistence through Entity Framework Core.
+See the [project parts](docs/PROJECT-PARTS.md) for the development sequence,
+architecture, and local demonstration.
 
 ## Run the API locally
 
 Use .NET 10 and SQL Server LocalDB. From the repository root, restore the
-dependencies and apply the migrations. Set a signing key once per development
-computer. Keep an existing key if you want existing access tokens to stay valid.
+dependencies and apply the migrations. Run the signing-key lines once per
+development computer. Keep your existing key if one is already configured.
 
 ```powershell
 dotnet tool restore
@@ -39,10 +41,15 @@ npm run start --prefix src/ServiceDesk.Web
 Open [ServiceDesk in the browser](http://localhost:4200). Create an employee
 account or sign in. You can submit a ticket and use the queue filters. Admins
 can select **Edit** on a ticket to change its details, category, and status.
+To remove a ticket from the same panel, select **Delete ticket** and confirm.
+Deleting a ticket also removes its comments, status history, and attachments.
 Select **Activity** to see the ticket's status history, post comments, and
 attach or download a PNG, JPEG, or PDF file up to 5 MB. The
 admin **Dashboard** shows status and category counts. Selecting a status card
-opens the matching queue. On the new-ticket form, selecting **Network & VPN**
+opens the matching queue. **Download Excel** exports a summary and ticket list.
+The optional date range filters by creation date in UTC and includes both
+selected dates. Each export supports up to 10,000 tickets.
+On the new-ticket form, selecting **Network & VPN**
 reveals an optional connection type that is saved with the description. The
 frontend keeps the access token in memory, so reloading the page requires
 signing in again. The Angular dev server forwards `/api` requests to the
@@ -66,6 +73,16 @@ try {
 
 The command creates the admin and exits. Start the API separately with
 `dotnet run --project src/ServiceDesk.Api`.
+
+## Test with Swagger
+
+Open [Swagger](http://localhost:5018/swagger) while the API is running in
+Development. Use `POST /api/auth/login` and copy the `accessToken` from the
+response. Select **Authorize** and paste the token value. The test UI adds the
+Bearer prefix. For example, run `GET /api/tickets` with an employee token or
+`GET /api/dashboard/summary` with an admin token. The report endpoint is
+`GET /api/reports/tickets.xlsx`. Use a disposable ticket when demonstrating
+deletion.
 
 ## Send requests from Visual Studio
 

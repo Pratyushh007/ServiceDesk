@@ -234,7 +234,7 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
     [RequestSizeLimit(TicketAttachment.MaxRequestBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = TicketAttachment.MaxRequestBytes)]
     public async Task<ActionResult<TicketAttachmentResponse>> AddAttachment(
-        int id, [FromForm] IFormFile? file, CancellationToken cancellationToken)
+        int id, IFormFile? file, CancellationToken cancellationToken)
     {
         if (!await VisibleTickets().AnyAsync(ticket => ticket.Id == id, cancellationToken))
         {

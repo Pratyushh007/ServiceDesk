@@ -39,6 +39,11 @@
 .bar-track { grid-column: 1 / -1; height: .52rem; border-radius: 1rem; background: #ecf3f2; }
 .bar { display: block; height: 100%; border-radius: inherit; background: #2a8878; }
 .notice { margin: 0 0 .9rem; }
+.ticket-report { margin-top: 1.25rem; padding: 1.1rem 1.25rem 1.3rem; }
+.ticket-report h2 { font-size: 1.2rem; }
+.ticket-report form { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; margin-top: .8rem; }
+.ticket-report input { display: block; }
+.ticket-report .notice { margin: .75rem 0 0; }
 @media (max-width: 710px) {
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
 }

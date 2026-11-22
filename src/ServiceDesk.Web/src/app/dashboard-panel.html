@@ -7,6 +7,26 @@
     {{ loading() ? 'Refreshing…' : 'Refresh' }}
   </button>
 </div>
+<section class="panel ticket-report" aria-labelledby="ticket-report-heading">
+  <h2 id="ticket-report-heading">Excel ticket report</h2>
+  <p class="field-help" id="report-help">Filter by the date tickets were created (UTC). Leave dates blank to export all tickets.</p>
+  <form (submit)="$event.preventDefault(); exportReport.emit({ from: from.value, to: to.value })" aria-describedby="report-help">
+    <div>
+      <label for="report-from">From</label>
+      <input #from id="report-from" type="date" [disabled]="reportPending()" />
+    </div>
+    <div>
+      <label for="report-to">To</label>
+      <input #to id="report-to" type="date" [disabled]="reportPending()" />
+    </div>
+    <button class="button primary" type="submit" [disabled]="reportPending()">
+      {{ reportPending() ? 'Preparing report…' : 'Download Excel' }}
+    </button>
+  </form>
+  @if (reportError()) {
+    <p class="notice error" role="alert">{{ reportError() }}</p>
+  }
+</section>
 
 @if (error()) {
   <p class="notice error" role="alert">{{ error() }}</p>

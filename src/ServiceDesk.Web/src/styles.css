@@ -51,6 +51,11 @@ textarea { resize: vertical; }
 .notice { padding: .75rem; border-radius: .4rem; font-size: .9rem; line-height: 1.4; }
 .notice.error { color: #8d2130; background: #fdf0f1; }
 .notice.success { color: #116255; background: #e6f6ed; }
+.button.danger { color: #fff; background: #a12c3d; }
+.button.danger:hover { background: #852234; }
+.button.delete-link { color: #982839; background: transparent; }
+.button.delete-link:hover { background: #fdf0f1; }
+.delete-actions { margin-top: 1rem; }
 
 .topbar { background: var(--navy); color: #f7fbfa; }
 .topbar-inner, .workspace { width: min(100% - 3rem, 1220px); margin-inline: auto; }
