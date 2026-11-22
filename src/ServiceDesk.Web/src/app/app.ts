@@ -6,7 +6,7 @@ import { Category, DashboardSummary, ServiceDeskApi, Session, Ticket, TicketActi
 import { DashboardPanel } from './dashboard-panel';
 import { trimmedRequired } from './trimmed-required';
 
-type AuthMode = 'sign-in' | 'register';
+type AuthMode = 'sign-in' | 'admin' | 'register';
 
 const defaultFilters = { search: '', status: '', categoryId: '', sort: 'newest' };
 
@@ -104,13 +104,19 @@ export class App {
     this.authBusy.set(true);
     this.authError.set('');
     const credentials = this.authForm.getRawValue();
+    const mode = this.mode();
     let registered = false;
     try {
-      if (this.mode() === 'register') {
+      if (mode === 'register') {
         await this.api.register(credentials);
         registered = true;
       }
-      const session = await this.api.login(credentials);
+      const session = await this.api.login(credentials, mode === 'admin');
+      if (mode !== 'admin' && session.roles.includes('Admin')) {
+        this.setMode('admin');
+        this.authError.set('Use Admin sign in for this account.');
+        return;
+      }
       this.signedInEmail.set(credentials.email);
       this.session.set(session);
       this.authForm.controls.password.reset();
@@ -153,7 +159,7 @@ export class App {
     this.updatedTicketId.set(null);
     this.deletedTicketId.set(null);
     this.closeActivity();
-    this.setMode('sign-in');
+    this.setMode(this.mode() === 'admin' ? 'admin' : 'sign-in');
   }
 
   protected async loadTickets(): Promise<void> {

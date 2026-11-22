@@ -82,8 +82,9 @@ export class ServiceDeskApi {
     return firstValueFrom(this.http.post<void>('/api/auth/register', credentials));
   }
 
-  login(credentials: Credentials): Promise<Session> {
-    return firstValueFrom(this.http.post<Session>('/api/auth/login', credentials));
+  login(credentials: Credentials, admin: boolean): Promise<Session> {
+    const endpoint = admin ? '/api/auth/admin/login' : '/api/auth/login';
+    return firstValueFrom(this.http.post<Session>(endpoint, credentials));
   }
 
   categories(session: Session): Promise<Category[]> {

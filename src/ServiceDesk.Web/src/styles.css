@@ -98,7 +98,7 @@ textarea { resize: vertical; }
 .auth-panel { display: grid; align-items: center; background: #fff; padding: clamp(1.5rem, 4vw, 3rem); }
 .auth-panel-inner { width: 100%; max-width: 350px; margin-inline: auto; }
 .auth-panel h2 { margin: 1.2rem 0 1.35rem; font-size: 1.55rem; letter-spacing: -.025em; }
-.mode-switch { display: inline-flex; padding: .22rem; gap: .13rem; background: #eff4f4; border-radius: .55rem; }
+.mode-switch { display: inline-flex; flex-wrap: wrap; padding: .22rem; gap: .13rem; background: #eff4f4; border-radius: .55rem; }
 .mode-switch button { border: 0; border-radius: .36rem; padding: .5rem .7rem; min-height: 40px; color: #45616a; background: transparent; font-size: .875rem; font-weight: 700; }
 .mode-switch button[aria-pressed="true"] { background: #fff; color: #173039; box-shadow: 0 1px 4px #142b3a21; }
 .auth-panel label:not(:first-child), .create-panel label:not(:first-child) { margin-top: .95rem; }

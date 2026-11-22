@@ -30,10 +30,11 @@
     <section class="auth-panel" aria-labelledby="auth-heading">
       <div class="auth-panel-inner">
         <div class="mode-switch" aria-label="Account action">
-          <button type="button" [attr.aria-pressed]="mode() === 'sign-in'" [disabled]="authBusy()" (click)="setMode('sign-in')">Sign in</button>
+          <button type="button" [attr.aria-pressed]="mode() === 'sign-in'" [disabled]="authBusy()" (click)="setMode('sign-in')">Employee sign in</button>
+          <button type="button" [attr.aria-pressed]="mode() === 'admin'" [disabled]="authBusy()" (click)="setMode('admin')">Admin sign in</button>
           <button type="button" [attr.aria-pressed]="mode() === 'register'" [disabled]="authBusy()" (click)="setMode('register')">Create account</button>
         </div>
-        <h2 id="auth-heading">{{ mode() === 'sign-in' ? 'Sign in to ServiceDesk' : 'Create an employee account' }}</h2>
+        <h2 id="auth-heading">{{ mode() === 'register' ? 'Create an employee account' : mode() === 'admin' ? 'Sign in as an administrator' : 'Sign in as an employee' }}</h2>
         <form [formGroup]="authForm" (ngSubmit)="authenticate()" novalidate>
           <label for="email">Work email</label>
           <input id="email" type="email" placeholder="you@company.com" autocomplete="username" formControlName="email" [attr.aria-invalid]="authForm.controls.email.touched && authForm.controls.email.invalid" aria-describedby="email-error" />
@@ -52,7 +53,7 @@
             <p class="notice error" role="alert">{{ authError() }}</p>
           }
           <button type="submit" class="button primary auth-submit" [disabled]="authBusy()">
-            {{ authBusy() ? 'Please wait…' : mode() === 'sign-in' ? 'Sign in' : 'Create account' }}
+            {{ authBusy() ? 'Please wait…' : mode() === 'register' ? 'Create account' : 'Sign in' }}
           </button>
         </form>
       </div>

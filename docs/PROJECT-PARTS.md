@@ -16,7 +16,7 @@ This is the development sequence for the **IT Service Desk and Ticket Management
 | 10 | Interactive dashboard and VPN form | `DashboardController` groups ticket counts. `DashboardPanel` links status cards to queue filters. The intake form displays an optional network detail for VPN tickets. |
 | 11 | Attachments | `TicketAttachment` stores file metadata and bytes. The API enforces ticket access and validates PNG, JPEG, and PDF uploads up to 5 MB. |
 | 12 | Excel reporting | `ReportsController` queries tickets by UTC creation date and creates a workbook with summary and ticket sheets. Only admins can export it. |
-| 13 | Admin deletion and Swagger testing | The editor asks before sending `DELETE`. SQL Server deletes the ticket's dependent rows. Swagger in Development exercises authenticated endpoints with employee and admin JWTs. |
+| 13 | Final workflow and Swagger testing | Angular offers separate employee and admin sign-in options. The admin login endpoint checks the role before issuing a token. The editor confirms deletes, and Swagger exercises role-protected endpoints. |
 | 14 | Evaluation materials | The capstone project report documents the architecture, relationships, data flow, and results. The presentation follows the employee and admin workflows. |
 
 ## Local demonstration

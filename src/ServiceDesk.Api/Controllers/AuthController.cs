@@ -36,7 +36,15 @@ public sealed class AuthController(
     [AllowAnonymous]
     [HttpPost("login")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-    public async Task<ActionResult<AccessTokenResponse>> Login(CredentialsRequest request)
+    public Task<ActionResult<AccessTokenResponse>> Login(CredentialsRequest request) => Authenticate(request);
+
+    [AllowAnonymous]
+    [HttpPost("admin/login")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+    public Task<ActionResult<AccessTokenResponse>> AdminLogin(CredentialsRequest request) =>
+        Authenticate(request, RoleNames.Admin);
+
+    private async Task<ActionResult<AccessTokenResponse>> Authenticate(CredentialsRequest request, string? requiredRole = null)
     {
         var user = await users.FindByEmailAsync(request.Email.Trim());
         if (user is null || !(await signIn.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true)).Succeeded)
@@ -44,6 +52,12 @@ public sealed class AuthController(
             return Unauthorized();
         }
 
-        return tokens.Issue(user.Id, await users.GetRolesAsync(user));
+        var roles = await users.GetRolesAsync(user);
+        if (requiredRole is not null && !roles.Contains(requiredRole))
+        {
+            return Unauthorized();
+        }
+
+        return tokens.Issue(user.Id, roles);
     }
 }

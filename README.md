@@ -24,6 +24,7 @@ dotnet run --project src/ServiceDesk.Api
 The local API listens on `http://localhost:5018`. Use
 `POST /api/auth/register` to create a standard user and `POST /api/auth/login`
 to get a 30-minute JWT. Send it in the `Authorization: Bearer <token>` header.
+`POST /api/auth/admin/login` also requires membership in the Admin role.
 Standard users create and read their own tickets. Admins see all tickets and
 can edit, categorize, and delete them. Tickets created before sign-in was
 added remain visible to admins.
@@ -38,8 +39,9 @@ npm ci --prefix src/ServiceDesk.Web
 npm run start --prefix src/ServiceDesk.Web
 ```
 
-Open [ServiceDesk in the browser](http://localhost:4200). Create an employee
-account or sign in. You can submit a ticket and use the queue filters. Admins
+Open [ServiceDesk in the browser](http://localhost:4200). Choose **Employee sign in**
+or **Admin sign in** for your account. **Create account** registers an employee.
+You can submit a ticket and use the queue filters. Admins
 can select **Edit** on a ticket to change its details, category, and status.
 To remove a ticket from the same panel, select **Delete ticket** and confirm.
 Deleting a ticket also removes its comments, status history, and attachments.
