@@ -76,7 +76,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 app.UseAuthentication();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.UseAuthorization();
+app.MapGet("/health", async (ServiceDeskDbContext database, CancellationToken cancellationToken) =>
+    await database.Database.CanConnectAsync(cancellationToken)
+        ? Results.Ok()
+        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable))
+    .AllowAnonymous();
 app.MapControllers();
 app.Run();
 

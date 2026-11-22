@@ -7,6 +7,9 @@ architecture, and local demonstration.
 
 ## Run the API locally
 
+For a single image that serves the Angular frontend and API together, see the
+[deployment guide](docs/DEPLOYMENT.md).
+
 Use .NET 10 and SQL Server LocalDB. From the repository root, restore the
 dependencies and apply the migrations. Run the signing-key lines once per
 development computer. Keep your existing key if one is already configured.
