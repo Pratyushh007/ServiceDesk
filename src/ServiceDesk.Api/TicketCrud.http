@@ -1,0 +1,31 @@
+@baseUrl = http://localhost:5018
+# Set sampleTicketId to the ID returned by the POST in this file.
+@sampleTicketId = 0
+
+### Create a disposable sample ticket
+POST {{baseUrl}}/api/tickets
+Content-Type: application/json
+
+{
+  "title": "CRUD demo ticket",
+  "description": "Sample ticket for the update and delete demo."
+}
+
+### Update the sample ticket
+PUT {{baseUrl}}/api/tickets/{{sampleTicketId}}
+Content-Type: application/json
+
+{
+  "title": "CRUD demo ticket assigned",
+  "description": "An IT technician is investigating the issue.",
+  "status": "In Progress"
+}
+
+### Verify the updated ticket
+GET {{baseUrl}}/api/tickets/{{sampleTicketId}}
+
+### Delete the disposable sample ticket
+DELETE {{baseUrl}}/api/tickets/{{sampleTicketId}}
+
+### Verify the deleted ticket returns 404
+GET {{baseUrl}}/api/tickets/{{sampleTicketId}}

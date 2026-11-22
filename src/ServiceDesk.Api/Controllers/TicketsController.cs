@@ -46,4 +46,30 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         await database.SaveChangesAsync(cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = ticket.Id }, ticket);
     }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, UpdateTicketRequest request, CancellationToken cancellationToken)
+    {
+        var title = request.Title.Trim();
+        var description = request.Description.Trim();
+
+        var affectedRows = await database.Tickets
+            .Where(ticket => ticket.Id == id)
+            .ExecuteUpdateAsync(update => update
+                .SetProperty(ticket => ticket.Title, title)
+                .SetProperty(ticket => ticket.Description, description)
+                .SetProperty(ticket => ticket.Status, request.Status), cancellationToken);
+
+        return affectedRows == 0 ? NotFound() : NoContent();
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var affectedRows = await database.Tickets
+            .Where(ticket => ticket.Id == id)
+            .ExecuteDeleteAsync(cancellationToken);
+
+        return affectedRows == 0 ? NotFound() : NoContent();
+    }
 }
