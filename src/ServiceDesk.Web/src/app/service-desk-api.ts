@@ -34,6 +34,23 @@ export interface TicketUpdate extends TicketDraft {
   status: Ticket['status'];
 }
 
+export interface TicketComment {
+  id: number;
+  body: string;
+  isStaff: boolean;
+  createdAtUtc: string;
+}
+
+export interface TicketActivity {
+  comments: TicketComment[];
+  statusChanges: {
+    id: number;
+    previousStatus: Ticket['status'] | null;
+    status: Ticket['status'];
+    changedAtUtc: string;
+  }[];
+}
+
 export interface TicketFilters {
   search: string;
   status: string;
@@ -85,6 +102,18 @@ export class ServiceDeskApi {
   updateTicket(session: Session, id: number, update: TicketUpdate): Promise<void> {
     return firstValueFrom(
       this.http.put<void>('/api/tickets/' + id, update, { headers: this.headers(session) }),
+    );
+  }
+
+  activity(session: Session, id: number): Promise<TicketActivity> {
+    return firstValueFrom(
+      this.http.get<TicketActivity>('/api/tickets/' + id + '/activity', { headers: this.headers(session) }),
+    );
+  }
+
+  addComment(session: Session, id: number, body: string): Promise<TicketComment> {
+    return firstValueFrom(
+      this.http.post<TicketComment>('/api/tickets/' + id + '/comments', { body }, { headers: this.headers(session) }),
     );
   }
 

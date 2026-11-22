@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { afterNextRender, Component, computed, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Category, ServiceDeskApi, Session, Ticket } from './service-desk-api';
+import { Category, ServiceDeskApi, Session, Ticket, TicketActivity } from './service-desk-api';
 import { trimmedRequired } from './trimmed-required';
 
 type AuthMode = 'sign-in' | 'register';
@@ -19,6 +19,7 @@ export class App {
   private readonly forms = inject(NonNullableFormBuilder);
   private readonly injector = inject(Injector);
   private readonly editTitle = viewChild<ElementRef<HTMLInputElement>>('editTitle');
+  private readonly activityHeading = viewChild<ElementRef<HTMLHeadingElement>>('activityHeading');
   private ticketRequest = 0;
 
   protected readonly mode = signal<AuthMode>('sign-in');
@@ -35,6 +36,11 @@ export class App {
   protected readonly editingTicketId = signal<number | null>(null);
   protected readonly updatedTicketId = signal<number | null>(null);
   protected readonly editError = signal('');
+  protected readonly activityTicket = signal<Ticket | null>(null);
+  protected readonly activity = signal<TicketActivity | null>(null);
+  protected readonly activityError = signal('');
+  protected readonly postingComment = signal(false);
+  protected readonly commentNotice = signal('');
   protected readonly authError = signal('');
   protected readonly queueError = signal('');
   protected readonly categoryError = signal('');
@@ -51,6 +57,9 @@ export class App {
     categoryId: [''],
   });
   protected readonly filters = this.forms.group(defaultFilters);
+  protected readonly commentForm = this.forms.group({
+    body: ['', [trimmedRequired, Validators.maxLength(1500)]],
+  });
   protected readonly editForm = this.forms.group({
     title: ['', [trimmedRequired, Validators.maxLength(150)]],
     description: ['', [trimmedRequired, Validators.maxLength(2000)]],
@@ -118,6 +127,7 @@ export class App {
     this.savingEdit.set(false);
     this.cancelEdit();
     this.updatedTicketId.set(null);
+    this.closeActivity();
     this.setMode('sign-in');
   }
 
@@ -226,6 +236,59 @@ export class App {
     }
   }
 
+  protected async showActivity(ticket: Ticket): Promise<void> {
+    const session = this.session();
+    if (!session) return;
+
+    this.closeActivity();
+    this.activityTicket.set(ticket);
+    afterNextRender(() => this.activityHeading()?.nativeElement.focus(), { injector: this.injector });
+    try {
+      const activity = await this.api.activity(session, ticket.id);
+      if (this.session() === session && this.activityTicket() === ticket) {
+        this.activity.set(activity);
+      }
+    } catch (error) {
+      if (this.session() === session && this.activityTicket() === ticket && !this.endExpiredSession(error)) {
+        this.activityError.set(this.errorMessage(error, 'Could not load ticket activity.'));
+      }
+    }
+  }
+
+  protected closeActivity(): void {
+    this.activityTicket.set(null);
+    this.activity.set(null);
+    this.activityError.set('');
+    this.postingComment.set(false);
+    this.commentNotice.set('');
+    this.commentForm.reset();
+  }
+
+  protected async postComment(): Promise<void> {
+    this.commentForm.markAllAsTouched();
+    const session = this.session();
+    const ticket = this.activityTicket();
+    const activity = this.activity();
+    if (!session || !ticket || !activity || this.commentForm.invalid || this.postingComment()) return;
+
+    this.postingComment.set(true);
+    this.activityError.set('');
+    this.commentNotice.set('');
+    try {
+      const comment = await this.api.addComment(session, ticket.id, this.commentForm.controls.body.value.trim());
+      if (this.session() !== session || this.activityTicket() !== ticket) return;
+      this.activity.set({ ...activity, comments: [...activity.comments, comment] });
+      this.commentForm.reset();
+      this.commentNotice.set('Comment posted.');
+    } catch (error) {
+      if (this.session() === session && this.activityTicket() === ticket && !this.endExpiredSession(error)) {
+        this.activityError.set(this.errorMessage(error, 'Could not post the comment.'));
+      }
+    } finally {
+      if (this.session() === session && this.activityTicket() === ticket) this.postingComment.set(false);
+    }
+  }
+
   private async loadCategories(session: Session): Promise<void> {
     try {
       const categories = await this.api.categories(session);
@@ -252,6 +315,7 @@ export class App {
   private errorMessage(error: unknown, fallback: string): string {
     if (!(error instanceof HttpErrorResponse)) return fallback;
     if (error.status === 401) return 'Check your email and password and try again.';
+    if (error.status === 409 && typeof error.error?.message === 'string') return error.error.message;
 
     const validationErrors = error.error?.errors as Record<string, string[]> | undefined;
     return validationErrors ? Object.values(validationErrors).flat().join(' ') : fallback;

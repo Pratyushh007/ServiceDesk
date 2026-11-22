@@ -10,6 +10,8 @@ public sealed class ServiceDeskDbContext(DbContextOptions<ServiceDeskDbContext> 
 {
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<TicketComment> TicketComments => Set<TicketComment>();
+    public DbSet<TicketStatusChange> TicketStatusChanges => Set<TicketStatusChange>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,6 +24,7 @@ public sealed class ServiceDeskDbContext(DbContextOptions<ServiceDeskDbContext> 
         ticket.Property(item => item.Title).HasMaxLength(Ticket.TitleMaxLength);
         ticket.Property(item => item.Description).HasMaxLength(Ticket.DescriptionMaxLength);
         ticket.Property(item => item.Status).HasMaxLength(32);
+        ticket.Property(item => item.RowVersion).IsRowVersion();
         ticket.HasOne<Category>()
             .WithMany()
             .HasForeignKey(item => item.CategoryId)
@@ -30,6 +33,17 @@ public sealed class ServiceDeskDbContext(DbContextOptions<ServiceDeskDbContext> 
             .WithMany()
             .HasForeignKey(item => item.OwnerId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        var comment = modelBuilder.Entity<TicketComment>();
+        comment.Property(item => item.Body).HasMaxLength(TicketComment.BodyMaxLength);
+        comment.HasOne<Ticket>().WithMany().HasForeignKey(item => item.TicketId).OnDelete(DeleteBehavior.Cascade);
+        comment.HasOne<IdentityUser>().WithMany().HasForeignKey(item => item.AuthorId).OnDelete(DeleteBehavior.Restrict);
+
+        var change = modelBuilder.Entity<TicketStatusChange>();
+        change.Property(item => item.PreviousStatus).HasMaxLength(32);
+        change.Property(item => item.Status).HasMaxLength(32);
+        change.HasOne(item => item.Ticket).WithMany().HasForeignKey(item => item.TicketId).OnDelete(DeleteBehavior.Cascade);
+        change.HasOne<IdentityUser>().WithMany().HasForeignKey(item => item.ChangedById).OnDelete(DeleteBehavior.Restrict);
 
         var category = modelBuilder.Entity<Category>();
         category.Property(item => item.Name).HasMaxLength(80);

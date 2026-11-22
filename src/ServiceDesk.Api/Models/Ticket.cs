@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace ServiceDesk.Api.Models;
 
 public sealed class Ticket
@@ -9,10 +11,13 @@ public sealed class Ticket
     public const string ResolvedStatus = "Resolved";
 
     public int Id { get; private set; }
-    public required string Title { get; init; }
-    public required string Description { get; init; }
-    public string Status { get; private set; } = OpenStatus;
-    public int? CategoryId { get; init; }
+    public required string Title { get; set; }
+    public required string Description { get; set; }
+    public string Status { get; set; } = OpenStatus;
+    public int? CategoryId { get; set; }
     public string? OwnerId { get; init; }
     public DateTimeOffset CreatedAtUtc { get; private set; } = DateTimeOffset.UtcNow;
+
+    [JsonIgnore]
+    public byte[] RowVersion { get; private set; } = [];
 }

@@ -127,7 +127,8 @@ textarea { resize: vertical; }
 .ticket p { color: var(--muted); line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
 .ticket-state { display: grid; gap: .34rem; align-content: start; justify-items: end; }
 .ticket-state time { color: var(--muted); font-size: .875rem; }
-.ticket-edit { margin-top: .22rem; }
+.ticket-actions { display: flex; gap: .25rem; flex-wrap: wrap; justify-content: flex-end; margin-top: .22rem; }
+.ticket-actions .button { padding-inline: .62rem; }
 .status { color: #246357; background: #e8f5ef; padding: .26rem .64rem; border-radius: 1rem; font-size: .875rem; font-weight: 700; white-space: nowrap; }
 .status.in-progress { background: #fff2d9; color: #77501d; }
 .status.resolved { background: #e8eff9; color: #3b5682; }
@@ -135,6 +136,14 @@ textarea { resize: vertical; }
 .create-panel .panel-heading { margin-bottom: 1.05rem; }
 .optional { color: var(--muted); font-weight: 400; margin-left: .3rem; }
 .edit-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: 1.2rem; }
+.activity-sections { display: grid; gap: 1.1rem; }
+.activity-sections h3 { font-size: 1rem; margin-bottom: .5rem; }
+.activity-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
+.activity-list li { padding: .55rem .65rem; border-radius: .4rem; background: #f0f5f5; overflow-wrap: anywhere; }
+.activity-list strong, .activity-list time { display: block; font-size: .875rem; }
+.activity-list time { color: var(--muted); }
+.activity-list p { margin-top: .3rem; white-space: pre-wrap; line-height: 1.45; }
+.status-history li { border-left: 2px solid #80b9ac; }
 
 @media (max-width: 900px) {
   .workspace-grid { grid-template-columns: minmax(0, 1fr) minmax(255px, 300px); gap: .9rem; }

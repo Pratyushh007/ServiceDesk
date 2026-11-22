@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using ServiceDesk.Api.Auth;
 using ServiceDesk.Api.Contracts;
@@ -80,6 +81,13 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         };
 
         database.Tickets.Add(ticket);
+        database.TicketStatusChanges.Add(new TicketStatusChange
+        {
+            Ticket = ticket,
+            ChangedById = CurrentUserId,
+            Status = Ticket.OpenStatus,
+            ChangedAtUtc = ticket.CreatedAtUtc
+        });
         await database.SaveChangesAsync(cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = ticket.Id }, ticket);
     }
@@ -93,19 +101,41 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
             return ValidationProblem(ModelState);
         }
 
-        var title = request.Title.Trim();
-        var description = request.Description.Trim();
+        var ticket = await database.Tickets.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (ticket is null)
+        {
+            return NotFound();
+        }
 
-        var affectedRows = await database.Tickets
-            .Where(ticket => ticket.Id == id)
-            .ExecuteUpdateAsync(update => update
-                .SetProperty(ticket => ticket.Title, title)
-                .SetProperty(ticket => ticket.Description, description)
-                .SetProperty(ticket => ticket.Status, request.Status)
-                .SetProperty(ticket => ticket.CategoryId,
-                    ticket => request.IncludesCategory ? request.CategoryId : ticket.CategoryId), cancellationToken);
+        ticket.Title = request.Title.Trim();
+        ticket.Description = request.Description.Trim();
+        if (request.IncludesCategory)
+        {
+            ticket.CategoryId = request.CategoryId;
+        }
 
-        return affectedRows == 0 ? NotFound() : NoContent();
+        if (ticket.Status != request.Status)
+        {
+            database.TicketStatusChanges.Add(new TicketStatusChange
+            {
+                Ticket = ticket,
+                ChangedById = CurrentUserId,
+                PreviousStatus = ticket.Status,
+                Status = request.Status
+            });
+            ticket.Status = request.Status;
+        }
+
+        try
+        {
+            await database.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Conflict(new { message = "This ticket changed while saving. Refresh the queue and try again." });
+        }
+
+        return NoContent();
     }
 
     [Authorize(Roles = RoleNames.Admin)]
@@ -137,6 +167,64 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         return affectedRows == 0 ? NotFound() : NoContent();
     }
 
+    [HttpGet("{id:int}/activity")]
+    public async Task<ActionResult<TicketActivityResponse>> GetActivity(int id, CancellationToken cancellationToken)
+    {
+        if (!await VisibleTickets().AnyAsync(ticket => ticket.Id == id, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        var comments = await database.TicketComments
+            .Where(item => item.TicketId == id)
+            .OrderBy(item => item.Id)
+            .Select(item => new TicketCommentResponse(item.Id, item.Body, item.IsStaff, item.CreatedAtUtc))
+            .ToArrayAsync(cancellationToken);
+        var statusChanges = await database.TicketStatusChanges
+            .Where(item => item.TicketId == id)
+            .OrderBy(item => item.Id)
+            .Select(item => new TicketStatusChangeResponse(item.Id, item.PreviousStatus, item.Status, item.ChangedAtUtc))
+            .ToArrayAsync(cancellationToken);
+
+        return new TicketActivityResponse(comments, statusChanges);
+    }
+
+    [HttpPost("{id:int}/comments")]
+    public async Task<ActionResult<TicketCommentResponse>> AddComment(
+        int id, CreateTicketCommentRequest request, CancellationToken cancellationToken)
+    {
+        if (!await VisibleTickets().AnyAsync(ticket => ticket.Id == id, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        var comment = new TicketComment
+        {
+            TicketId = id,
+            AuthorId = CurrentUserId,
+            Body = request.Body.Trim(),
+            IsStaff = User.IsInRole(RoleNames.Admin)
+        };
+        database.TicketComments.Add(comment);
+        try
+        {
+            await database.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 547 })
+        {
+            if (!await VisibleTickets().AnyAsync(ticket => ticket.Id == id, cancellationToken))
+            {
+                return NotFound();
+            }
+            throw;
+        }
+
+        return StatusCode(StatusCodes.Status201Created,
+            new TicketCommentResponse(comment.Id, comment.Body, comment.IsStaff, comment.CreatedAtUtc));
+    }
+
+    private string CurrentUserId => User.FindFirstValue(JwtRegisteredClaimNames.Sub)!;
+
     private IQueryable<Ticket> VisibleTickets()
     {
         if (User.IsInRole(RoleNames.Admin))
@@ -144,7 +232,7 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
             return database.Tickets;
         }
 
-        var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var userId = CurrentUserId;
         return database.Tickets.Where(ticket => ticket.OwnerId == userId);
     }
 

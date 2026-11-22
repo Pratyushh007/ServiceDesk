@@ -130,9 +130,12 @@
                   <div class="ticket-state">
                     <span class="status" [class.in-progress]="ticket.status === 'In Progress'" [class.resolved]="ticket.status === 'Resolved'">{{ ticket.status }}</span>
                     <time [attr.datetime]="ticket.createdAtUtc">{{ ticket.createdAtUtc | date: 'd MMM yyyy' }}</time>
-                    @if (isAdmin()) {
-                      <button type="button" class="button secondary ticket-edit" [attr.aria-label]="'Edit ticket #' + ticket.id" [disabled]="editingTicketId() !== null" (click)="startEditing(ticket)">Edit</button>
-                    }
+                    <div class="ticket-actions">
+                      <button type="button" class="button quiet" [attr.aria-label]="'View activity for ticket #' + ticket.id" [disabled]="activityTicket() !== null || editingTicketId() !== null" (click)="showActivity(ticket)">Activity</button>
+                      @if (isAdmin()) {
+                        <button type="button" class="button secondary" [attr.aria-label]="'Edit ticket #' + ticket.id" [disabled]="activityTicket() !== null || editingTicketId() !== null" (click)="startEditing(ticket)">Edit</button>
+                      }
+                    </div>
                   </div>
                 </li>
               }
@@ -175,6 +178,66 @@
               <button type="button" class="button quiet" [disabled]="savingEdit()" (click)="cancelEdit()">Cancel</button>
             </div>
           </form>
+        } @else if (activityTicket(); as selected) {
+          <div class="panel-heading">
+            <h2 #activityHeading id="create-heading" tabindex="-1">Ticket #{{ selected.id }} activity</h2>
+            <button type="button" class="button quiet" [disabled]="postingComment()" (click)="closeActivity()">Close</button>
+          </div>
+          @if (activityError()) {
+            <p class="notice error" role="alert">{{ activityError() }}</p>
+          }
+          @if (activity(); as details) {
+            <div class="activity-sections">
+              <section aria-labelledby="history-heading">
+                <h3 id="history-heading">Status history</h3>
+                @if (details.statusChanges.length === 0) {
+                  <p class="field-help">No status changes recorded.</p>
+                } @else {
+                  <ol class="activity-list status-history">
+                    @for (change of details.statusChanges; track change.id) {
+                      <li>
+                        <strong>{{ change.previousStatus ? change.previousStatus + ' to ' + change.status : 'Opened' }}</strong>
+                        <time [attr.datetime]="change.changedAtUtc">{{ change.changedAtUtc | date: 'd MMM, h:mm a' }}</time>
+                      </li>
+                    }
+                  </ol>
+                }
+              </section>
+              <section aria-labelledby="comments-heading">
+                <h3 id="comments-heading">Comments</h3>
+                @if (details.comments.length === 0) {
+                  <p class="field-help">No comments yet.</p>
+                } @else {
+                  <ul class="activity-list comments">
+                    @for (comment of details.comments; track comment.id) {
+                      <li>
+                        <strong>{{ comment.isStaff ? 'IT administrator' : 'Employee' }}</strong>
+                        <time [attr.datetime]="comment.createdAtUtc">{{ comment.createdAtUtc | date: 'd MMM, h:mm a' }}</time>
+                        <p>{{ comment.body }}</p>
+                      </li>
+                    }
+                  </ul>
+                }
+              </section>
+              <form [formGroup]="commentForm" (ngSubmit)="postComment()" novalidate>
+                <label for="comment">Add a comment</label>
+                <textarea id="comment" rows="3" maxlength="1500" formControlName="body"
+                  [attr.aria-invalid]="commentForm.controls.body.touched && commentForm.controls.body.invalid"
+                  [attr.aria-describedby]="commentForm.controls.body.touched && commentForm.controls.body.invalid ? 'comment-error' : null"></textarea>
+                @if (commentForm.controls.body.touched && commentForm.controls.body.invalid) {
+                  <span id="comment-error" class="field-error">Enter a comment before posting.</span>
+                }
+                @if (commentNotice()) {
+                  <p class="notice success" role="status">{{ commentNotice() }}</p>
+                }
+                <button type="submit" class="button primary ticket-submit" [disabled]="postingComment()">
+                  {{ postingComment() ? 'Posting…' : 'Post comment' }}
+                </button>
+              </form>
+            </div>
+          } @else if (!activityError()) {
+            <p class="field-help" role="status">Loading activity…</p>
+          }
         } @else {
         <div class="panel-heading"><h2 id="create-heading">New ticket</h2></div>
         <form [formGroup]="ticketForm" (ngSubmit)="submitTicket()" novalidate>
