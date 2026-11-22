@@ -1,0 +1,48 @@
+<div class="dashboard-head">
+  <div class="page-heading">
+    <h1>Service desk overview</h1>
+    <p>Track the ticket backlog and see which categories need attention.</p>
+  </div>
+  <button class="button secondary" type="button" [disabled]="loading()" (click)="refresh.emit()">
+    {{ loading() ? 'Refreshing…' : 'Refresh' }}
+  </button>
+</div>
+
+@if (error()) {
+  <p class="notice error" role="alert">{{ error() }}</p>
+}
+<div [attr.aria-busy]="loading()">
+  @if (summary(); as data) {
+    <div class="metrics" aria-label="Tickets by status">
+      @for (metric of metrics(); track metric.tone) {
+        <button class="metric" [attr.data-tone]="metric.tone" type="button"
+          [attr.aria-label]="metric.label + ': ' + metric.count + '. View tickets'"
+          (click)="viewTickets.emit(metric.status)">
+          <span>{{ metric.label }}</span>
+          <strong>{{ metric.count }}</strong>
+          <span class="metric-action" aria-hidden="true">View tickets</span>
+        </button>
+      }
+    </div>
+    <section class="panel category-summary" aria-labelledby="category-summary-heading">
+      <h2 id="category-summary-heading">Tickets by category</h2>
+      @if (data.categories.length) {
+        <ul>
+          @for (category of data.categories; track category.name) {
+            <li>
+              <span>{{ category.name }}</span>
+              <strong>{{ category.count }}</strong>
+              <div class="bar-track" aria-hidden="true">
+                <span class="bar" [style.width.%]="category.count * 100 / data.total"></span>
+              </div>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="field-help">Category counts will appear when tickets are submitted.</p>
+      }
+    </section>
+  } @else if (loading()) {
+    <p class="empty" role="status">Loading ticket counts…</p>
+  }
+</div>

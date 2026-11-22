@@ -2,7 +2,8 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { afterNextRender, Component, computed, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Category, ServiceDeskApi, Session, Ticket, TicketActivity } from './service-desk-api';
+import { Category, DashboardSummary, ServiceDeskApi, Session, Ticket, TicketActivity } from './service-desk-api';
+import { DashboardPanel } from './dashboard-panel';
 import { trimmedRequired } from './trimmed-required';
 
 type AuthMode = 'sign-in' | 'register';
@@ -11,7 +12,7 @@ const defaultFilters = { search: '', status: '', categoryId: '', sort: 'newest' 
 
 @Component({
   selector: 'app-root',
-  imports: [DatePipe, ReactiveFormsModule],
+  imports: [DashboardPanel, DatePipe, ReactiveFormsModule],
   templateUrl: './app.html',
 })
 export class App {
@@ -28,6 +29,11 @@ export class App {
   protected readonly isAdmin = computed(() => this.session()?.roles.includes('Admin') ?? false);
   protected readonly categories = signal<Category[]>([]);
   protected readonly tickets = signal<Ticket[]>([]);
+  protected readonly adminPage = signal<'queue' | 'dashboard'>('queue');
+  protected readonly dashboard = signal<DashboardSummary | null>(null);
+  protected readonly loadingDashboard = signal(false);
+  protected readonly dashboardError = signal('');
+  protected readonly vpnCategoryId = '2';
 
   protected readonly authBusy = signal(false);
   protected readonly loadingTickets = signal(false);
@@ -55,6 +61,7 @@ export class App {
     title: ['', [trimmedRequired, Validators.maxLength(150)]],
     description: ['', [trimmedRequired, Validators.maxLength(2000)]],
     categoryId: [''],
+    connectionType: [''],
   });
   protected readonly filters = this.forms.group(defaultFilters);
   protected readonly commentForm = this.forms.group({
@@ -116,6 +123,10 @@ export class App {
     this.signedInEmail.set('');
     this.categories.set([]);
     this.tickets.set([]);
+    this.adminPage.set('queue');
+    this.dashboard.set(null);
+    this.loadingDashboard.set(false);
+    this.dashboardError.set('');
     this.filters.reset(defaultFilters);
     this.ticketForm.reset();
     this.queueError.set('');
@@ -155,19 +166,55 @@ export class App {
     void this.loadTickets();
   }
 
+  protected openDashboard(): void {
+    this.adminPage.set('dashboard');
+    void this.refreshDashboard();
+  }
+
+  protected openDashboardTickets(status: Ticket['status'] | ''): void {
+    this.filters.reset({ ...defaultFilters, status });
+    this.adminPage.set('queue');
+    void this.loadTickets();
+  }
+
+  protected async refreshDashboard(): Promise<void> {
+    const session = this.session();
+    if (!session || !this.isAdmin() || this.loadingDashboard()) return;
+
+    this.loadingDashboard.set(true);
+    this.dashboardError.set('');
+    try {
+      const summary = await this.api.dashboard(session);
+      if (this.session() === session) this.dashboard.set(summary);
+    } catch (error) {
+      if (this.session() === session && !this.endExpiredSession(error)) {
+        this.dashboardError.set(this.errorMessage(error, 'Could not load the dashboard.'));
+      }
+    } finally {
+      if (this.session() === session) this.loadingDashboard.set(false);
+    }
+  }
+
   protected async submitTicket(): Promise<void> {
     this.ticketForm.markAllAsTouched();
     const session = this.session();
     if (!session || this.ticketForm.invalid || this.savingTicket()) return;
 
-    this.savingTicket.set(true);
     this.createdTicketId.set(null);
     this.ticketError.set('');
     const draft = this.ticketForm.getRawValue();
+    const connection = draft.categoryId === this.vpnCategoryId ? draft.connectionType : '';
+    const description = draft.description.trim() + (connection ? '\n\nConnection type: ' + connection : '');
+    if (description.length > 2000) {
+      this.ticketError.set('Shorten the description so it fits with the connection details.');
+      return;
+    }
+
+    this.savingTicket.set(true);
     try {
       const ticket = await this.api.createTicket(session, {
         title: draft.title.trim(),
-        description: draft.description.trim(),
+        description,
         categoryId: draft.categoryId ? Number(draft.categoryId) : null,
       });
       if (this.session() !== session) return;

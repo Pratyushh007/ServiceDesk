@@ -60,6 +60,18 @@
   </main>
 } @else {
   <main class="workspace">
+    @if (isAdmin()) {
+      <nav class="admin-nav" aria-label="Admin workspace">
+        <button class="button quiet" type="button" [attr.aria-current]="adminPage() === 'queue' ? 'page' : null"
+          (click)="adminPage.set('queue')">Ticket queue</button>
+        <button class="button quiet" type="button" [attr.aria-current]="adminPage() === 'dashboard' ? 'page' : null"
+          (click)="openDashboard()">Dashboard</button>
+      </nav>
+    }
+    @if (isAdmin() && adminPage() === 'dashboard') {
+      <app-dashboard-panel [summary]="dashboard()" [loading]="loadingDashboard()" [error]="dashboardError()"
+        (refresh)="refreshDashboard()" (viewTickets)="openDashboardTickets($event)" />
+    } @else {
     <div class="page-heading">
       <h1>{{ isAdmin() ? 'Ticket queue' : 'My tickets' }}</h1>
       <p>{{ isAdmin() ? 'Browse and filter requests across the service desk.' : 'Report an IT issue and check its status here.' }}</p>
@@ -252,10 +264,19 @@
             <span class="field-error" id="description-error">Enter a description with at least one non-space character.</span>
           }
           <label for="category">Category <span class="optional">optional</span></label>
-          <select id="category" formControlName="categoryId">
+          <select id="category" formControlName="categoryId" (change)="ticketForm.controls.connectionType.reset()">
             <option value="">Choose a category</option>
             @for (category of categories(); track category.id) { <option [value]="category.id">{{ category.name }}</option> }
           </select>
+          @if (ticketForm.controls.categoryId.value === vpnCategoryId) {
+            <label for="connection-type">Connection type <span class="optional">optional</span></label>
+            <select id="connection-type" formControlName="connectionType">
+              <option value="">Choose a connection type</option>
+              <option value="Wi-Fi">Wi-Fi</option>
+              <option value="Ethernet">Ethernet</option>
+              <option value="Mobile hotspot">Mobile hotspot</option>
+            </select>
+          }
           @if (categoryError()) {
             <p class="field-help" role="status">{{ categoryError() }}</p>
           }
@@ -272,5 +293,6 @@
         }
       </section>
     </div>
+    }
   </main>
 }

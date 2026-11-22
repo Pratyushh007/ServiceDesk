@@ -51,6 +51,14 @@ export interface TicketActivity {
   }[];
 }
 
+export interface DashboardSummary {
+  total: number;
+  open: number;
+  inProgress: number;
+  resolved: number;
+  categories: { name: string; count: number }[];
+}
+
 export interface TicketFilters {
   search: string;
   status: string;
@@ -114,6 +122,12 @@ export class ServiceDeskApi {
   addComment(session: Session, id: number, body: string): Promise<TicketComment> {
     return firstValueFrom(
       this.http.post<TicketComment>('/api/tickets/' + id + '/comments', { body }, { headers: this.headers(session) }),
+    );
+  }
+
+  dashboard(session: Session): Promise<DashboardSummary> {
+    return firstValueFrom(
+      this.http.get<DashboardSummary>('/api/dashboard/summary', { headers: this.headers(session) }),
     );
   }
 
