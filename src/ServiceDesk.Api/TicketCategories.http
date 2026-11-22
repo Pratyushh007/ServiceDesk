@@ -1,0 +1,38 @@
+@baseUrl = http://localhost:5018
+# Set sampleTicketId to the ID returned by the POST below.
+@sampleTicketId = 0
+@networkCategoryId = 2
+
+### List the categories available for the dropdown
+GET {{baseUrl}}/api/categories
+
+### Create an uncategorized sample ticket
+POST {{baseUrl}}/api/tickets
+Content-Type: application/json
+
+{
+  "title": "VPN disconnects frequently",
+  "description": "The connection drops every five minutes."
+}
+
+### Assign the Network and VPN category
+PUT {{baseUrl}}/api/tickets/{{sampleTicketId}}/category
+Content-Type: application/json
+
+{
+  "categoryId": {{networkCategoryId}}
+}
+
+### Verify the assigned category ID
+GET {{baseUrl}}/api/tickets/{{sampleTicketId}}
+
+### Remove the sample ticket's category
+PUT {{baseUrl}}/api/tickets/{{sampleTicketId}}/category
+Content-Type: application/json
+
+{
+  "categoryId": null
+}
+
+### Remove the disposable sample ticket
+DELETE {{baseUrl}}/api/tickets/{{sampleTicketId}}

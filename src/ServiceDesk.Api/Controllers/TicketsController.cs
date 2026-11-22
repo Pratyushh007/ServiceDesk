@@ -36,10 +36,16 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
     [HttpPost]
     public async Task<ActionResult<Ticket>> Create(CreateTicketRequest request, CancellationToken cancellationToken)
     {
+        if (!await ValidateCategoryAsync(request.CategoryId, cancellationToken))
+        {
+            return ValidationProblem(ModelState);
+        }
+
         var ticket = new Ticket
         {
             Title = request.Title.Trim(),
-            Description = request.Description.Trim()
+            Description = request.Description.Trim(),
+            CategoryId = request.CategoryId
         };
 
         database.Tickets.Add(ticket);
@@ -63,6 +69,23 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         return affectedRows == 0 ? NotFound() : NoContent();
     }
 
+    [HttpPut("{id:int}/category")]
+    public async Task<IActionResult> SetCategory(
+        int id, SetTicketCategoryRequest request, CancellationToken cancellationToken)
+    {
+        if (!await ValidateCategoryAsync(request.CategoryId, cancellationToken))
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var affectedRows = await database.Tickets
+            .Where(ticket => ticket.Id == id)
+            .ExecuteUpdateAsync(update => update
+                .SetProperty(ticket => ticket.CategoryId, request.CategoryId), cancellationToken);
+
+        return affectedRows == 0 ? NotFound() : NoContent();
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
@@ -71,5 +94,17 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
             .ExecuteDeleteAsync(cancellationToken);
 
         return affectedRows == 0 ? NotFound() : NoContent();
+    }
+
+    private async Task<bool> ValidateCategoryAsync(int? categoryId, CancellationToken cancellationToken)
+    {
+        if (categoryId is null ||
+            await database.Categories.AnyAsync(category => category.Id == categoryId, cancellationToken))
+        {
+            return true;
+        }
+
+        ModelState.AddModelError(nameof(Ticket.CategoryId), "That category does not exist.");
+        return false;
     }
 }

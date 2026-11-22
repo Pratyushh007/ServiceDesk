@@ -12,4 +12,7 @@ public sealed class CreateTicketRequest
     [Required]
     [StringLength(Ticket.DescriptionMaxLength)]
     public string Description { get; init; } = string.Empty;
+
+    [Range(1, int.MaxValue)]
+    public int? CategoryId { get; init; }
 }

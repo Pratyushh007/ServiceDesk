@@ -22,6 +22,49 @@ namespace ServiceDesk.Api.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("ServiceDesk.Api.Models.Category", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Categories");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "Hardware"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "Network & VPN"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Name = "Software"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Name = "Access & Accounts"
+                        });
+                });
+
             modelBuilder.Entity("ServiceDesk.Api.Models.Ticket", b =>
                 {
                     b.Property<int>("Id")
@@ -29,6 +72,9 @@ namespace ServiceDesk.Api.Data.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("int");
 
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -50,7 +96,17 @@ namespace ServiceDesk.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CategoryId");
+
                     b.ToTable("Tickets");
+                });
+
+            modelBuilder.Entity("ServiceDesk.Api.Models.Ticket", b =>
+                {
+                    b.HasOne("ServiceDesk.Api.Models.Category", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 #pragma warning restore 612, 618
         }

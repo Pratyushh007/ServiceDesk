@@ -10,5 +10,6 @@ public sealed class Ticket
     public required string Title { get; init; }
     public required string Description { get; init; }
     public string Status { get; private set; } = OpenStatus;
+    public int? CategoryId { get; init; }
     public DateTimeOffset CreatedAtUtc { get; private set; } = DateTimeOffset.UtcNow;
 }
