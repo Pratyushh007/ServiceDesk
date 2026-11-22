@@ -1,5 +1,5 @@
 @baseUrl = http://localhost:5018
-@ticketId = 1
+@ticketId = 3
 
 ### Create a ticket
 POST {{baseUrl}}/api/tickets
