@@ -3,18 +3,24 @@
 
 ### List all tickets by ID
 GET {{baseUrl}}/api/tickets
+Authorization: Bearer {{accessToken}}
 
 ### Search titles and descriptions
 GET {{baseUrl}}/api/tickets?search=VPN
+Authorization: Bearer {{accessToken}}
 
 ### Filter to tickets in progress
 GET {{baseUrl}}/api/tickets?status=In%20Progress
+Authorization: Bearer {{accessToken}}
 
 ### Find open network tickets that mention VPN, newest first
 GET {{baseUrl}}/api/tickets?search=VPN&status=Open&categoryId={{networkCategoryId}}&sort=newest
+Authorization: Bearer {{accessToken}}
 
 ### Sort ticket titles alphabetically
 GET {{baseUrl}}/api/tickets?sort=title
+Authorization: Bearer {{accessToken}}
 
 ### Verify an unsupported sort returns 400
 GET {{baseUrl}}/api/tickets?sort=unknown
+Authorization: Bearer {{accessToken}}

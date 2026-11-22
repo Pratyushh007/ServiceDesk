@@ -3,6 +3,7 @@
 
 ### Create a ticket
 POST {{baseUrl}}/api/tickets
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -12,12 +13,15 @@ Content-Type: application/json
 
 ### List tickets
 GET {{baseUrl}}/api/tickets
+Authorization: Bearer {{accessToken}}
 
 ### Get a ticket by ID (set ticketId above to the ID from the create response)
 GET {{baseUrl}}/api/tickets/{{ticketId}}
+Authorization: Bearer {{accessToken}}
 
 ### Reject a blank title
 POST {{baseUrl}}/api/tickets
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -27,3 +31,4 @@ Content-Type: application/json
 
 ### Request a missing ticket
 GET {{baseUrl}}/api/tickets/9999
+Authorization: Bearer {{accessToken}}

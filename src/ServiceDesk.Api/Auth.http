@@ -1,0 +1,27 @@
+@baseUrl = http://localhost:5018
+
+### Ticket list requires a valid token
+GET {{baseUrl}}/api/tickets
+
+### Register a standard user
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{accountEmail}}",
+  "password": "{{accountPassword}}"
+}
+
+### Sign in as a user or administrator
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{accountEmail}}",
+  "password": "{{accountPassword}}"
+}
+
+### List the tickets visible to this account
+GET {{baseUrl}}/api/tickets
+Authorization: Bearer {{login.response.body.$.accessToken}}

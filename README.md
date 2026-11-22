@@ -1,0 +1,66 @@
+# ServiceDesk
+
+ServiceDesk is an IT ticket management application. Its ASP.NET Core API stores
+tickets, categories, and accounts in SQL Server through Entity Framework Core.
+
+## Run the API locally
+
+Use .NET 10 and SQL Server LocalDB. From the repository root, restore the
+dependencies and apply the migrations. Set a signing key once per development
+computer. Keep an existing key if you want existing access tokens to stay valid.
+
+```powershell
+dotnet tool restore
+dotnet restore
+$key = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+@{ 'Jwt:SigningKey' = $key } | ConvertTo-Json -Compress | dotnet user-secrets set --project src/ServiceDesk.Api
+Remove-Variable key
+dotnet ef database update --project src/ServiceDesk.Api -- --environment Development
+dotnet run --project src/ServiceDesk.Api
+```
+
+The local API listens on `http://localhost:5018`. Use
+`POST /api/auth/register` to create a standard user and `POST /api/auth/login`
+to get a 30-minute JWT. Send it in the `Authorization: Bearer <token>` header.
+Standard users create and read their own tickets. Admins see all tickets and
+can edit, categorize, and delete them. Tickets created before sign-in was
+added remain visible to admins.
+
+## Provision a local admin
+
+After applying the migrations, run the following in PowerShell with a new
+email address. Choose a password with at least 12 characters, including
+uppercase and lowercase letters, a number, and a symbol.
+
+```powershell
+$env:Admin__Email = Read-Host 'Admin email'
+$env:Admin__Password = Read-Host 'Admin password' -MaskInput
+try {
+    dotnet run --project src/ServiceDesk.Api -- --seed-admin=true
+} finally {
+    Remove-Item Env:Admin__Email, Env:Admin__Password
+}
+```
+
+The command creates the admin and exits. Start the API separately with
+`dotnet run --project src/ServiceDesk.Api`.
+
+## Send requests from Visual Studio
+
+Open `Auth.http` and select the `local` environment. Create
+`src/ServiceDesk.Api/http-client.env.json.user` to set local variables.
+Use a disposable test account and keep the `.user` file out of Git.
+
+```json
+{
+  "local": {
+    "accountEmail": "replace-with-your-test-email@example.test",
+    "accountPassword": "replace-with-your-test-password",
+    "accessToken": "replace-with-the-login-response-accessToken"
+  }
+}
+```
+
+The last request in `Auth.http` uses the named login response directly.
+For the other `.http` files, copy the login response's `accessToken` into
+the local environment file. Use an admin token for ticket changes and deletion.

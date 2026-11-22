@@ -4,6 +4,7 @@
 
 ### Create a disposable sample ticket
 POST {{baseUrl}}/api/tickets
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -13,6 +14,7 @@ Content-Type: application/json
 
 ### Update the sample ticket
 PUT {{baseUrl}}/api/tickets/{{sampleTicketId}}
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -23,9 +25,12 @@ Content-Type: application/json
 
 ### Verify the updated ticket
 GET {{baseUrl}}/api/tickets/{{sampleTicketId}}
+Authorization: Bearer {{accessToken}}
 
 ### Delete the disposable sample ticket
 DELETE {{baseUrl}}/api/tickets/{{sampleTicketId}}
+Authorization: Bearer {{accessToken}}
 
 ### Verify the deleted ticket returns 404
 GET {{baseUrl}}/api/tickets/{{sampleTicketId}}
+Authorization: Bearer {{accessToken}}

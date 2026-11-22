@@ -1,5 +1,9 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ServiceDesk.Api.Auth;
 using ServiceDesk.Api.Contracts;
 using ServiceDesk.Api.Data;
 using ServiceDesk.Api.Models;
@@ -7,6 +11,7 @@ using ServiceDesk.Api.Models;
 namespace ServiceDesk.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/tickets")]
 public sealed class TicketsController(ServiceDeskDbContext database) : ControllerBase
 {
@@ -14,7 +19,7 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
     public async Task<ActionResult<Ticket[]>> GetAll(
         [FromQuery] TicketListQuery filters, CancellationToken cancellationToken)
     {
-        var tickets = database.Tickets.AsNoTracking();
+        var tickets = VisibleTickets().AsNoTracking();
 
         var search = filters.Search?.Trim();
         if (!string.IsNullOrEmpty(search))
@@ -47,7 +52,7 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Ticket>> GetById(int id, CancellationToken cancellationToken)
     {
-        var ticket = await database.Tickets
+        var ticket = await VisibleTickets()
             .AsNoTracking()
             .SingleOrDefaultAsync(ticket => ticket.Id == id, cancellationToken);
         if (ticket is null)
@@ -70,7 +75,8 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         {
             Title = request.Title.Trim(),
             Description = request.Description.Trim(),
-            CategoryId = request.CategoryId
+            CategoryId = request.CategoryId,
+            OwnerId = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
         };
 
         database.Tickets.Add(ticket);
@@ -78,6 +84,7 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         return CreatedAtAction(nameof(GetById), new { id = ticket.Id }, ticket);
     }
 
+    [Authorize(Roles = RoleNames.Admin)]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, UpdateTicketRequest request, CancellationToken cancellationToken)
     {
@@ -94,6 +101,7 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         return affectedRows == 0 ? NotFound() : NoContent();
     }
 
+    [Authorize(Roles = RoleNames.Admin)]
     [HttpPut("{id:int}/category")]
     public async Task<IActionResult> SetCategory(
         int id, SetTicketCategoryRequest request, CancellationToken cancellationToken)
@@ -111,6 +119,7 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         return affectedRows == 0 ? NotFound() : NoContent();
     }
 
+    [Authorize(Roles = RoleNames.Admin)]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
     {
@@ -119,6 +128,17 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
             .ExecuteDeleteAsync(cancellationToken);
 
         return affectedRows == 0 ? NotFound() : NoContent();
+    }
+
+    private IQueryable<Ticket> VisibleTickets()
+    {
+        if (User.IsInRole(RoleNames.Admin))
+        {
+            return database.Tickets;
+        }
+
+        var userId = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        return database.Tickets.Where(ticket => ticket.OwnerId == userId);
     }
 
     private async Task<bool> ValidateCategoryAsync(int? categoryId, CancellationToken cancellationToken)

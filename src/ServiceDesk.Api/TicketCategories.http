@@ -5,9 +5,11 @@
 
 ### List the categories available for the dropdown
 GET {{baseUrl}}/api/categories
+Authorization: Bearer {{accessToken}}
 
 ### Create an uncategorized sample ticket
 POST {{baseUrl}}/api/tickets
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -17,6 +19,7 @@ Content-Type: application/json
 
 ### Assign the Network and VPN category
 PUT {{baseUrl}}/api/tickets/{{sampleTicketId}}/category
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -25,9 +28,11 @@ Content-Type: application/json
 
 ### Verify the assigned category ID
 GET {{baseUrl}}/api/tickets/{{sampleTicketId}}
+Authorization: Bearer {{accessToken}}
 
 ### Remove the sample ticket's category
 PUT {{baseUrl}}/api/tickets/{{sampleTicketId}}/category
+Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
@@ -36,3 +41,4 @@ Content-Type: application/json
 
 ### Remove the disposable sample ticket
 DELETE {{baseUrl}}/api/tickets/{{sampleTicketId}}
+Authorization: Bearer {{accessToken}}
