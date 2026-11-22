@@ -26,6 +26,22 @@ Standard users create and read their own tickets. Admins see all tickets and
 can edit, categorize, and delete them. Tickets created before sign-in was
 added remain visible to admins.
 
+## Run the Angular frontend
+
+Use Node.js 24 with Angular 21. Keep the API running on port 5018, then open
+a second terminal from the repository root:
+
+```powershell
+npm ci --prefix src/ServiceDesk.Web
+npm run start --prefix src/ServiceDesk.Web
+```
+
+Open [ServiceDesk in the browser](http://localhost:4200). Create an employee
+account or sign in. You can submit a ticket and use the queue filters. The
+frontend keeps the access token in memory, so reloading the page requires
+signing in again. The Angular dev server forwards `/api` requests to the
+ASP.NET Core API through `proxy.conf.json`.
+
 ## Provision a local admin
 
 After applying the migrations, run the following in PowerShell with a new

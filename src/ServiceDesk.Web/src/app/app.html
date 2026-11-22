@@ -1,0 +1,172 @@
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"><span></span></span>ServiceDesk</div>
+    @if (session()) {
+      <div class="account">
+        <div class="account-text">
+          <strong>{{ signedInEmail() }}</strong>
+          <span>{{ isAdmin() ? 'IT administrator' : 'Employee' }}</span>
+        </div>
+        <button type="button" class="button signout" (click)="signOut()">Sign out</button>
+      </div>
+    }
+  </div>
+</header>
+
+@if (!session()) {
+  <main class="auth-layout">
+    <section class="auth-intro" aria-labelledby="welcome-heading">
+      <div>
+        <span class="intro-label">INTERNAL IT SUPPORT</span>
+        <h1 id="welcome-heading">IT help,<br />all in one place.</h1>
+        <p>Report a technical issue and follow its progress from the first request to resolution.</p>
+      </div>
+      <div class="intro-roles">
+        <div><strong>Employees</strong><span>Submit requests and view your own tickets.</span></div>
+        <div><strong>IT administrators</strong><span>Review tickets across the service desk.</span></div>
+      </div>
+    </section>
+
+    <section class="auth-panel" aria-labelledby="auth-heading">
+      <div class="auth-panel-inner">
+        <div class="mode-switch" aria-label="Account action">
+          <button type="button" [attr.aria-pressed]="mode() === 'sign-in'" [disabled]="authBusy()" (click)="setMode('sign-in')">Sign in</button>
+          <button type="button" [attr.aria-pressed]="mode() === 'register'" [disabled]="authBusy()" (click)="setMode('register')">Create account</button>
+        </div>
+        <h2 id="auth-heading">{{ mode() === 'sign-in' ? 'Sign in to ServiceDesk' : 'Create an employee account' }}</h2>
+        <form [formGroup]="authForm" (ngSubmit)="authenticate()" novalidate>
+          <label for="email">Work email</label>
+          <input id="email" type="email" placeholder="you@company.com" autocomplete="username" formControlName="email" [attr.aria-invalid]="authForm.controls.email.touched && authForm.controls.email.invalid" aria-describedby="email-error" />
+          @if (authForm.controls.email.touched && authForm.controls.email.invalid) {
+            <span class="field-error" id="email-error">Enter a valid email address.</span>
+          }
+          <label for="password">Password</label>
+          <input id="password" type="password" formControlName="password" [attr.autocomplete]="mode() === 'register' ? 'new-password' : 'current-password'" [attr.aria-invalid]="authForm.controls.password.touched && authForm.controls.password.invalid" aria-describedby="password-help password-error" />
+          @if (mode() === 'register') {
+            <span class="field-help" id="password-help">At least 12 characters, including uppercase, lowercase, a number, and a symbol.</span>
+          }
+          @if (authForm.controls.password.touched && authForm.controls.password.invalid) {
+            <span class="field-error" id="password-error">{{ mode() === 'register' ? 'Enter 12 to 128 characters.' : 'Enter your password.' }}</span>
+          }
+          @if (authError()) {
+            <p class="notice error" role="alert">{{ authError() }}</p>
+          }
+          <button type="submit" class="button primary auth-submit" [disabled]="authBusy()">
+            {{ authBusy() ? 'Please wait…' : mode() === 'sign-in' ? 'Sign in' : 'Create account' }}
+          </button>
+        </form>
+      </div>
+    </section>
+  </main>
+} @else {
+  <main class="workspace">
+    <div class="page-heading">
+      <h1>{{ isAdmin() ? 'Ticket queue' : 'My tickets' }}</h1>
+      <p>{{ isAdmin() ? 'Browse and filter requests across the service desk.' : 'Report an IT issue and check its status here.' }}</p>
+    </div>
+
+    <div class="workspace-grid">
+      <section class="panel queue-panel" aria-labelledby="queue-heading">
+        <div class="panel-heading">
+          <h2 id="queue-heading">Tickets</h2>
+          <span class="result-count">{{ tickets().length }} {{ tickets().length === 1 ? 'result' : 'results' }}</span>
+        </div>
+        <form class="filters" [formGroup]="filters" (ngSubmit)="loadTickets()">
+          <div class="filter-field search-field">
+            <label for="search">Search tickets</label>
+            <input id="search" type="search" placeholder="Search title or description" maxlength="150" formControlName="search" />
+          </div>
+          <div class="filter-field">
+            <label for="status-filter">Status</label>
+            <select id="status-filter" formControlName="status">
+              <option value="">All statuses</option>
+              @for (status of statuses; track status) { <option [value]="status">{{ status }}</option> }
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="category-filter">Category</label>
+            <select id="category-filter" formControlName="categoryId">
+              <option value="">All categories</option>
+              @for (category of categories(); track category.id) { <option [value]="category.id">{{ category.name }}</option> }
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="sort">Sort by</label>
+            <select id="sort" formControlName="sort">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="title">Title A–Z</option>
+              <option value="id">Ticket number</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button type="submit" class="button secondary" [disabled]="loadingTickets()">Apply filters</button>
+            <button type="button" class="button quiet" [disabled]="loadingTickets()" (click)="clearFilters()">Clear</button>
+          </div>
+        </form>
+
+        <div aria-live="polite" [attr.aria-busy]="loadingTickets()">
+          @if (queueError()) {
+            <p class="notice error" role="alert">{{ queueError() }}</p>
+          } @else if (loadingTickets()) {
+            <p class="empty">Loading tickets…</p>
+          } @else if (tickets().length === 0) {
+            <div class="empty">
+              <strong>No tickets found</strong>
+              <span>Try clearing the filters or submit a new ticket.</span>
+            </div>
+          } @else {
+            <ul class="ticket-list">
+              @for (ticket of tickets(); track ticket.id) {
+                <li class="ticket">
+                  <div class="ticket-main">
+                    <div class="ticket-meta"><span>#{{ ticket.id }}</span><span>{{ categoryName(ticket.categoryId) }}</span></div>
+                    <h3>{{ ticket.title }}</h3>
+                    <p>{{ ticket.description }}</p>
+                  </div>
+                  <div class="ticket-state">
+                    <span class="status" [class.in-progress]="ticket.status === 'In Progress'" [class.resolved]="ticket.status === 'Resolved'">{{ ticket.status }}</span>
+                    <time [attr.datetime]="ticket.createdAtUtc">{{ ticket.createdAtUtc | date: 'd MMM yyyy' }}</time>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </section>
+
+      <section class="panel create-panel" aria-labelledby="create-heading">
+        <div class="panel-heading"><h2 id="create-heading">New ticket</h2></div>
+        <form [formGroup]="ticketForm" (ngSubmit)="submitTicket()" novalidate>
+          <label for="title">Title</label>
+          <input id="title" type="text" maxlength="150" placeholder="e.g. VPN keeps disconnecting" formControlName="title" [attr.aria-invalid]="ticketForm.controls.title.touched && ticketForm.controls.title.invalid" aria-describedby="title-error" />
+          @if (ticketForm.controls.title.touched && ticketForm.controls.title.invalid) {
+            <span class="field-error" id="title-error">Enter a title with at least one non-space character.</span>
+          }
+          <label for="description">Description</label>
+          <textarea id="description" rows="5" maxlength="2000" placeholder="Describe what happened and when it started." formControlName="description" [attr.aria-invalid]="ticketForm.controls.description.touched && ticketForm.controls.description.invalid" aria-describedby="description-error"></textarea>
+          @if (ticketForm.controls.description.touched && ticketForm.controls.description.invalid) {
+            <span class="field-error" id="description-error">Enter a description with at least one non-space character.</span>
+          }
+          <label for="category">Category <span class="optional">optional</span></label>
+          <select id="category" formControlName="categoryId">
+            <option value="">Choose a category</option>
+            @for (category of categories(); track category.id) { <option [value]="category.id">{{ category.name }}</option> }
+          </select>
+          @if (categoryError()) {
+            <p class="field-help" role="status">{{ categoryError() }}</p>
+          }
+          @if (ticketError()) {
+            <p class="notice error" role="alert">{{ ticketError() }}</p>
+          }
+          @if (createdTicketId(); as id) {
+            <p class="notice success" role="status">Ticket #{{ id }} was created.</p>
+          }
+          <button type="submit" class="button primary ticket-submit" [disabled]="savingTicket()">
+            {{ savingTicket() ? 'Submitting…' : 'Submit ticket' }}
+          </button>
+        </form>
+      </section>
+    </div>
+  </main>
+}
