@@ -30,10 +30,6 @@ export interface Ticket extends TicketDraft {
   createdAtUtc: string;
 }
 
-export interface TicketUpdate extends TicketDraft {
-  status: Ticket['status'];
-}
-
 export interface TicketComment {
   id: number;
   body: string;
@@ -116,9 +112,15 @@ export class ServiceDeskApi {
     );
   }
 
-  updateTicket(session: Session, id: number, update: TicketUpdate): Promise<void> {
+  updateTicketStatus(session: Session, id: number, status: Ticket['status']): Promise<void> {
     return firstValueFrom(
-      this.http.put<void>('/api/tickets/' + id, update, { headers: this.headers(session) }),
+      this.http.put<void>('/api/tickets/' + id, { status }, { headers: this.headers(session) }),
+    );
+  }
+
+  updateTicketCategory(session: Session, id: number, categoryId: number | null): Promise<void> {
+    return firstValueFrom(
+      this.http.put<void>('/api/tickets/' + id + '/category', { categoryId }, { headers: this.headers(session) }),
     );
   }
 

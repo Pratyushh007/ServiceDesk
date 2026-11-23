@@ -29,7 +29,8 @@ The local API listens on `http://localhost:5018`. Use
 to get a 30-minute JWT. Send it in the `Authorization: Bearer <token>` header.
 `POST /api/auth/admin/login` also requires membership in the Admin role.
 Standard users create and read their own tickets. Admins see all tickets and
-can edit, categorize, and delete them. Tickets created before sign-in was
+can change their status, categorize them, and delete them. The original title
+and description are locked after submission. Tickets created before sign-in was
 added remain visible to admins.
 
 ## Run the Angular frontend
@@ -45,8 +46,9 @@ npm run start --prefix src/ServiceDesk.Web
 Open [ServiceDesk in the browser](http://localhost:4200). Choose **Employee sign in**
 or **Admin sign in** for your account. **Create account** registers an employee.
 You can submit a ticket and use the queue filters. Admins
-can select **Edit** on a ticket to change its details, category, and status.
-To remove a ticket from the same panel, select **Delete ticket** and confirm.
+can select **Change status** on a ticket and save a new status.
+Expand **Category and deletion** in the same panel to assign a category or
+select **Delete ticket** and confirm.
 Deleting a ticket also removes its comments, status history, and attachments.
 Select **Activity** to see the ticket's status history, post comments, and
 attach or download a PNG, JPEG, or PDF file up to 5 MB. The

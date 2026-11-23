@@ -11,8 +11,8 @@ public sealed class Ticket
     public const string ResolvedStatus = "Resolved";
 
     public int Id { get; private set; }
-    public required string Title { get; set; }
-    public required string Description { get; set; }
+    public required string Title { get; init; }
+    public required string Description { get; init; }
     public string Status { get; set; } = OpenStatus;
     public int? CategoryId { get; set; }
     public string? OwnerId { get; init; }

@@ -9,21 +9,19 @@ Content-Type: application/json
 
 {
   "title": "CRUD demo ticket",
-  "description": "Sample ticket for the update and delete demo."
+  "description": "Sample ticket for the status and delete demo."
 }
 
-### Update the sample ticket
+### Change the sample ticket status
 PUT {{baseUrl}}/api/tickets/{{sampleTicketId}}
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
-  "title": "CRUD demo ticket assigned",
-  "description": "An IT technician is investigating the issue.",
   "status": "In Progress"
 }
 
-### Verify the updated ticket
+### Verify the status and original ticket text
 GET {{baseUrl}}/api/tickets/{{sampleTicketId}}
 Authorization: Bearer {{accessToken}}
 

@@ -107,8 +107,22 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
             return NotFound();
         }
 
-        ticket.Title = request.Title.Trim();
-        ticket.Description = request.Description.Trim();
+        if (request.Title is { } title && !string.Equals(title, ticket.Title, StringComparison.Ordinal))
+        {
+            ModelState.AddModelError(nameof(request.Title), "The original ticket title is locked.");
+        }
+
+        if (request.Description is { } description
+            && !string.Equals(description, ticket.Description, StringComparison.Ordinal))
+        {
+            ModelState.AddModelError(nameof(request.Description), "The original ticket description is locked.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
         if (request.IncludesCategory)
         {
             ticket.CategoryId = request.CategoryId;

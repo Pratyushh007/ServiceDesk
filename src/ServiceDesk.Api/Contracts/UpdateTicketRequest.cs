@@ -8,13 +8,11 @@ public sealed class UpdateTicketRequest
 {
     private int? _categoryId;
 
-    [Required]
     [StringLength(Ticket.TitleMaxLength)]
-    public string Title { get; init; } = string.Empty;
+    public string? Title { get; init; }
 
-    [Required]
     [StringLength(Ticket.DescriptionMaxLength)]
-    public string Description { get; init; } = string.Empty;
+    public string? Description { get; init; }
 
     [Required]
     [AllowedValues(Ticket.OpenStatus, Ticket.InProgressStatus, Ticket.ResolvedStatus,

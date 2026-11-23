@@ -119,8 +119,8 @@
           </div>
         </form>
 
-        @if (updatedTicketId(); as id) {
-          <p class="notice success" role="status">Ticket #{{ id }} was updated.</p>
+        @if (ticketUpdateNotice(); as message) {
+          <p class="notice success" role="status">{{ message }}</p>
         }
         @if (deletedTicketId(); as id) {
           <p class="notice success" role="status">Ticket #{{ id }} was deleted.</p>
@@ -148,9 +148,9 @@
                     <span class="status" [class.in-progress]="ticket.status === 'In Progress'" [class.resolved]="ticket.status === 'Resolved'">{{ ticket.status }}</span>
                     <time [attr.datetime]="ticket.createdAtUtc">{{ ticket.createdAtUtc | date: 'd MMM yyyy' }}</time>
                     <div class="ticket-actions">
-                      <button type="button" class="button quiet" [attr.aria-label]="'View activity for ticket #' + ticket.id" [disabled]="activityTicket() !== null || editingTicketId() !== null" (click)="showActivity(ticket)">Activity</button>
+                      <button type="button" class="button quiet" [attr.aria-label]="'View activity for ticket #' + ticket.id" [disabled]="activityTicket() !== null || statusTicketId() !== null" (click)="showActivity(ticket)">Activity</button>
                       @if (isAdmin()) {
-                        <button type="button" class="button secondary" [attr.aria-label]="'Edit ticket #' + ticket.id" [disabled]="activityTicket() !== null || editingTicketId() !== null" (click)="startEditing(ticket)">Edit</button>
+                        <button type="button" class="button secondary" [attr.aria-label]="'Change status for ticket #' + ticket.id" [disabled]="activityTicket() !== null || statusTicketId() !== null" (click)="openStatusPanel(ticket)">Change status</button>
                       }
                     </div>
                   </div>
@@ -162,50 +162,45 @@
       </section>
 
       <section class="panel create-panel" aria-labelledby="create-heading">
-        @if (editingTicketId(); as id) {
-          <div class="panel-heading"><h2 id="create-heading">{{ confirmDelete() ? 'Delete' : 'Edit' }} ticket #{{ id }}</h2></div>
+        @if (statusTicketId(); as id) {
+          <div class="panel-heading"><h2 id="create-heading">{{ confirmDelete() ? 'Delete ticket #' : 'Change status for ticket #' }}{{ id }}</h2></div>
+          @if (ticketActionError()) {
+            <p class="notice error" role="alert">{{ ticketActionError() }}</p>
+          }
           @if (confirmDelete()) {
             <p class="field-help">Deleting this ticket permanently removes its comments, status history, and attachments.</p>
-            @if (editError()) {
-              <p class="notice error" role="alert">{{ editError() }}</p>
-            }
-            <div class="edit-actions delete-actions">
-              <button type="button" class="button danger" [disabled]="deletingTicket()" (click)="deleteTicket()">{{ deletingTicket() ? 'Deleting…' : 'Confirm delete' }}</button>
-              <button type="button" class="button quiet" [disabled]="deletingTicket()" (click)="confirmDelete.set(false); editError.set('')">Keep ticket</button>
+            <div class="edit-actions">
+              <button type="button" class="button danger" [disabled]="ticketAction() !== null" (click)="deleteTicket()">{{ ticketAction() === 'delete' ? 'Deleting…' : 'Confirm delete' }}</button>
+              <button type="button" class="button quiet" [disabled]="ticketAction() !== null" (click)="confirmDelete.set(false); ticketActionError.set('')">Keep ticket</button>
             </div>
           } @else {
-          <form [formGroup]="editForm" (ngSubmit)="saveEdit()" novalidate>
-            <label for="edit-title">Title</label>
-            <input #editTitle id="edit-title" type="text" maxlength="150" formControlName="title" [attr.aria-invalid]="editForm.controls.title.touched && editForm.controls.title.invalid" [attr.aria-describedby]="editForm.controls.title.touched && editForm.controls.title.invalid ? 'edit-title-error' : null" />
-            @if (editForm.controls.title.touched && editForm.controls.title.invalid) {
-              <span class="field-error" id="edit-title-error">Enter a title with at least one non-space character.</span>
-            }
-            <label for="edit-description">Description</label>
-            <textarea id="edit-description" rows="5" maxlength="2000" formControlName="description" [attr.aria-invalid]="editForm.controls.description.touched && editForm.controls.description.invalid" [attr.aria-describedby]="editForm.controls.description.touched && editForm.controls.description.invalid ? 'edit-description-error' : null"></textarea>
-            @if (editForm.controls.description.touched && editForm.controls.description.invalid) {
-              <span class="field-error" id="edit-description-error">Enter a description with at least one non-space character.</span>
-            }
-            <label for="edit-status">Status</label>
-            <select id="edit-status" formControlName="status">
-              @for (status of statuses; track status) { <option [value]="status">{{ status }}</option> }
-            </select>
-            <label for="edit-category">Category</label>
-            <select id="edit-category" formControlName="categoryId" [attr.disabled]="categories().length === 0 ? '' : null">
-              <option value="">Uncategorized</option>
-              @if (categories().length === 0 && editForm.controls.categoryId.value) {
-                <option [value]="editForm.controls.categoryId.value">Category #{{ editForm.controls.categoryId.value }}</option>
-              }
-              @for (category of categories(); track category.id) { <option [value]="category.id">{{ category.name }}</option> }
-            </select>
-            @if (editError()) {
-              <p class="notice error" role="alert">{{ editError() }}</p>
-            }
-            <div class="edit-actions">
-              <button type="submit" class="button primary" [disabled]="savingEdit()">{{ savingEdit() ? 'Saving…' : 'Save changes' }}</button>
-              <button type="button" class="button quiet" [disabled]="savingEdit()" (click)="cancelEdit()">Cancel</button>
-              <button type="button" class="button delete-link" [disabled]="savingEdit()" (click)="confirmDelete.set(true); editError.set('')">Delete ticket</button>
-            </div>
-          </form>
+            <form (submit)="$event.preventDefault(); saveTicketChange('status')">
+              <label for="ticket-status">Status</label>
+              <select #statusInput id="ticket-status" [formControl]="statusControl" [attr.disabled]="ticketAction() ? '' : null">
+                @for (status of statuses; track status) { <option [value]="status">{{ status }}</option> }
+              </select>
+              <div class="edit-actions">
+                <button type="submit" class="button primary" [disabled]="ticketAction() !== null">{{ ticketAction() === 'status' ? 'Saving…' : 'Save status' }}</button>
+                <button type="button" class="button quiet" [disabled]="ticketAction() !== null" (click)="closeStatusPanel()">Cancel</button>
+              </div>
+            </form>
+            <details class="ticket-management">
+              <summary>Category and deletion</summary>
+              <form (submit)="$event.preventDefault(); saveTicketChange('category')">
+                <label for="manage-category">Category</label>
+                <select id="manage-category" [formControl]="categoryControl" [attr.disabled]="ticketAction() || categories().length === 0 ? '' : null">
+                  <option value="">Uncategorized</option>
+                  @if (categories().length === 0 && categoryControl.value) {
+                    <option [value]="categoryControl.value">Category #{{ categoryControl.value }}</option>
+                  }
+                  @for (category of categories(); track category.id) { <option [value]="category.id">{{ category.name }}</option> }
+                </select>
+                <div class="edit-actions">
+                  <button type="submit" class="button secondary" [disabled]="ticketAction() !== null || categories().length === 0">{{ ticketAction() === 'category' ? 'Saving…' : 'Save category' }}</button>
+                  <button type="button" class="button delete-link" [disabled]="ticketAction() !== null" (click)="confirmDelete.set(true); ticketActionError.set('')">Delete ticket</button>
+                </div>
+              </form>
+            </details>
           }
         } @else if (activityTicket(); as selected) {
           <div class="panel-heading">

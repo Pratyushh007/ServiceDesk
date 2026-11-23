@@ -55,7 +55,6 @@ textarea { resize: vertical; }
 .button.danger:hover { background: #852234; }
 .button.delete-link { color: #982839; background: transparent; }
 .button.delete-link:hover { background: #fdf0f1; }
-.delete-actions { margin-top: 1rem; }
 
 .topbar { background: var(--navy); color: #f7fbfa; }
 .topbar-inner, .workspace { width: min(100% - 3rem, 1220px); margin-inline: auto; }
@@ -143,8 +142,12 @@ textarea { resize: vertical; }
 .create-panel .panel-heading { margin-bottom: 1.05rem; }
 .optional { color: var(--muted); font-weight: 400; margin-left: .3rem; }
 .edit-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: 1.2rem; }
+.ticket-management { border-top: 1px solid var(--line); margin-top: 1.25rem; padding-top: .85rem; }
+.ticket-management summary { cursor: pointer; color: #09685b; font-weight: 700; }
+.ticket-management form { margin-top: .7rem; }
 .activity-sections { display: grid; gap: 1.1rem; }
-.activity-sections h3 { font-size: 1rem; margin-bottom: .5rem; }
+.activity-sections h3 { display: flex; align-items: center; gap: .5rem; font-size: 1rem; margin-bottom: .5rem; }
+.activity-sections h3::before { content: ""; width: .4rem; height: .4rem; flex: none; border-radius: 50%; background: #237b6b; }
 .activity-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
 .activity-list li { padding: .55rem .65rem; border-radius: .4rem; background: #f0f5f5; overflow-wrap: anywhere; }
 .activity-list strong, .activity-list time { display: block; font-size: .875rem; }

@@ -19,7 +19,7 @@ export class App {
   private readonly api = inject(ServiceDeskApi);
   private readonly forms = inject(NonNullableFormBuilder);
   private readonly injector = inject(Injector);
-  private readonly editTitle = viewChild<ElementRef<HTMLInputElement>>('editTitle');
+  private readonly statusInput = viewChild<ElementRef<HTMLSelectElement>>('statusInput');
   private readonly activityHeading = viewChild<ElementRef<HTMLHeadingElement>>('activityHeading');
   private ticketRequest = 0;
 
@@ -40,13 +40,12 @@ export class App {
   protected readonly authBusy = signal(false);
   protected readonly loadingTickets = signal(false);
   protected readonly savingTicket = signal(false);
-  protected readonly savingEdit = signal(false);
-  protected readonly editingTicketId = signal<number | null>(null);
-  protected readonly updatedTicketId = signal<number | null>(null);
+  protected readonly ticketAction = signal<'status' | 'category' | 'delete' | null>(null);
+  protected readonly statusTicketId = signal<number | null>(null);
+  protected readonly ticketUpdateNotice = signal('');
   protected readonly deletedTicketId = signal<number | null>(null);
   protected readonly confirmDelete = signal(false);
-  protected readonly deletingTicket = signal(false);
-  protected readonly editError = signal('');
+  protected readonly ticketActionError = signal('');
   protected readonly activityTicket = signal<Ticket | null>(null);
   protected readonly activity = signal<TicketActivity | null>(null);
   protected readonly activityError = signal('');
@@ -77,12 +76,8 @@ export class App {
   protected readonly commentForm = this.forms.group({
     body: ['', [trimmedRequired, Validators.maxLength(1500)]],
   });
-  protected readonly editForm = this.forms.group({
-    title: ['', [trimmedRequired, Validators.maxLength(150)]],
-    description: ['', [trimmedRequired, Validators.maxLength(2000)]],
-    categoryId: [''],
-    status: this.forms.control<Ticket['status']>('Open', Validators.required),
-  });
+  protected readonly statusControl = this.forms.control<Ticket['status']>('Open', Validators.required);
+  protected readonly categoryControl = this.forms.control('');
   protected readonly statuses = ['Open', 'In Progress', 'Resolved'] as const;
 
   protected setMode(mode: AuthMode): void {
@@ -153,10 +148,9 @@ export class App {
     this.createdTicketId.set(null);
     this.loadingTickets.set(false);
     this.savingTicket.set(false);
-    this.savingEdit.set(false);
-    this.deletingTicket.set(false);
-    this.cancelEdit();
-    this.updatedTicketId.set(null);
+    this.ticketAction.set(null);
+    this.closeStatusPanel();
+    this.ticketUpdateNotice.set('');
     this.deletedTicketId.set(null);
     this.closeActivity();
     this.setMode(this.mode() === 'admin' ? 'admin' : 'sign-in');
@@ -285,76 +279,70 @@ export class App {
     return this.categories().find(category => category.id === id)?.name ?? 'Category #' + id;
   }
 
-  protected startEditing(ticket: Ticket): void {
-    this.editForm.reset({
-      title: ticket.title,
-      description: ticket.description,
-      categoryId: ticket.categoryId?.toString() ?? '',
-      status: ticket.status,
-    });
-    this.updatedTicketId.set(null);
+  protected openStatusPanel(ticket: Ticket): void {
+    this.statusControl.reset(ticket.status);
+    this.categoryControl.reset(ticket.categoryId?.toString() ?? '');
+    this.ticketUpdateNotice.set('');
     this.deletedTicketId.set(null);
-    this.editError.set('');
-    this.editingTicketId.set(ticket.id);
-    afterNextRender(() => this.editTitle()?.nativeElement.focus(), { injector: this.injector });
+    this.ticketActionError.set('');
+    this.statusTicketId.set(ticket.id);
+    afterNextRender(() => this.statusInput()?.nativeElement.focus(), { injector: this.injector });
   }
 
-  protected cancelEdit(): void {
-    this.editingTicketId.set(null);
-    this.editError.set('');
+  protected closeStatusPanel(): void {
+    this.statusTicketId.set(null);
+    this.ticketActionError.set('');
     this.confirmDelete.set(false);
-    this.editForm.reset();
   }
 
-  protected async saveEdit(): Promise<void> {
-    this.editForm.markAllAsTouched();
+  protected async saveTicketChange(field: 'status' | 'category'): Promise<void> {
     const session = this.session();
-    const id = this.editingTicketId();
-    if (!session || !this.isAdmin() || id === null || this.editForm.invalid || this.savingEdit() || this.confirmDelete()) return;
+    const id = this.statusTicketId();
+    if (!session || !this.isAdmin() || id === null || this.ticketAction() || this.confirmDelete()) return;
+    if (field === 'status' && this.statusControl.invalid) return;
 
-    this.savingEdit.set(true);
-    this.editError.set('');
-    const draft = this.editForm.getRawValue();
+    this.ticketAction.set(field);
+    this.ticketActionError.set('');
     try {
-      await this.api.updateTicket(session, id, {
-        title: draft.title.trim(),
-        description: draft.description.trim(),
-        categoryId: draft.categoryId ? Number(draft.categoryId) : null,
-        status: draft.status,
-      });
+      if (field === 'status') {
+        await this.api.updateTicketStatus(session, id, this.statusControl.value);
+      } else {
+        const category = this.categoryControl.value;
+        await this.api.updateTicketCategory(session, id, category ? Number(category) : null);
+      }
       if (this.session() !== session) return;
-      this.cancelEdit();
-      this.updatedTicketId.set(id);
+      this.closeStatusPanel();
+      this.ticketUpdateNotice.set(`Ticket #${id} ${field} updated.`);
       void this.loadTickets();
     } catch (error) {
       if (this.session() === session && !this.endExpiredSession(error)) {
-        this.editError.set(this.errorMessage(error, 'Could not save the ticket.'));
+        this.ticketActionError.set(this.errorMessage(error, `Could not save the ticket ${field}.`));
       }
     } finally {
-      if (this.session() === session) this.savingEdit.set(false);
+      if (this.session() === session) this.ticketAction.set(null);
     }
   }
 
   protected async deleteTicket(): Promise<void> {
     const session = this.session();
-    const id = this.editingTicketId();
-    if (!session || !this.isAdmin() || id === null || !this.confirmDelete() || this.deletingTicket()) return;
+    const id = this.statusTicketId();
+    if (!session || !this.isAdmin() || id === null || !this.confirmDelete() || this.ticketAction()) return;
 
-    this.deletingTicket.set(true);
-    this.editError.set('');
+    this.ticketAction.set('delete');
+    this.ticketActionError.set('');
     try {
       await this.api.deleteTicket(session, id);
       if (this.session() !== session) return;
 
-      this.cancelEdit();
+      this.closeStatusPanel();
       this.deletedTicketId.set(id);
       void this.loadTickets();
     } catch (error) {
       if (this.session() === session && !this.endExpiredSession(error)) {
-        this.editError.set(this.errorMessage(error, 'Could not delete the ticket. Refresh the queue and try again.'));
+        this.ticketActionError.set(this.errorMessage(error, 'Could not delete the ticket. Refresh the queue and try again.'));
       }
     } finally {
-      if (this.session() === session) this.deletingTicket.set(false);
+      if (this.session() === session) this.ticketAction.set(null);
     }
   }
 
