@@ -32,7 +32,8 @@ if (builder.Environment.IsDevelopment())
 var connectionString = builder.Configuration.GetConnectionString("ServiceDesk")
     ?? throw new InvalidOperationException("Configure the ServiceDesk connection string before running the API.");
 builder.Services.AddDbContext<ServiceDeskDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseNpgsql(connectionString, postgres =>
+        postgres.MigrationsHistoryTable("__EFMigrationsHistory", ServiceDeskDbContext.Schema)));
 
 builder.Services.AddIdentityCore<IdentityUser>(options =>
     {

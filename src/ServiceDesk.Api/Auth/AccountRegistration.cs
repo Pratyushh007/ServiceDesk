@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using ServiceDesk.Api.Data;
 
 namespace ServiceDesk.Api.Auth;
@@ -29,7 +29,8 @@ public sealed class AccountRegistration(ServiceDeskDbContext database, UserManag
 
             return assigned;
         }
-        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 2601 or 2627 })
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
             return IdentityResult.Failed(new IdentityError
             {

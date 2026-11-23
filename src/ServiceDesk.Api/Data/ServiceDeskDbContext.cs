@@ -8,6 +8,8 @@ namespace ServiceDesk.Api.Data;
 
 public sealed class ServiceDeskDbContext(DbContextOptions<ServiceDeskDbContext> options) : IdentityDbContext<IdentityUser>(options)
 {
+    public const string Schema = "servicedesk";
+
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<TicketComment> TicketComments => Set<TicketComment>();
@@ -17,6 +19,7 @@ public sealed class ServiceDeskDbContext(DbContextOptions<ServiceDeskDbContext> 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.HasDefaultSchema(Schema);
         modelBuilder.Entity<IdentityRole>().HasData(
             new IdentityRole { Id = "servicedesk-admin", Name = RoleNames.Admin, NormalizedName = "ADMIN", ConcurrencyStamp = "servicedesk-admin" },
             new IdentityRole { Id = "servicedesk-user", Name = RoleNames.User, NormalizedName = "USER", ConcurrencyStamp = "servicedesk-user" });

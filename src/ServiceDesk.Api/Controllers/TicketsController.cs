@@ -2,8 +2,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using ServiceDesk.Api.Auth;
 using ServiceDesk.Api.Contracts;
 using ServiceDesk.Api.Data;
@@ -25,8 +25,10 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         var search = filters.Search?.Trim();
         if (!string.IsNullOrEmpty(search))
         {
+            var escaped = search.Replace(@"\", @"\\").Replace("%", @"\%").Replace("_", @"\_");
             tickets = tickets.Where(ticket =>
-                ticket.Title.Contains(search) || ticket.Description.Contains(search));
+                EF.Functions.ILike(ticket.Title, "%" + escaped + "%", @"\")
+                || EF.Functions.ILike(ticket.Description, "%" + escaped + "%", @"\"));
         }
 
         if (filters.Status is { } status)
@@ -230,7 +232,8 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         {
             await database.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 547 })
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
         {
             if (!await VisibleTickets().AnyAsync(ticket => ticket.Id == id, cancellationToken))
             {
@@ -289,7 +292,8 @@ public sealed class TicketsController(ServiceDeskDbContext database) : Controlle
         {
             await database.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (exception.InnerException is SqlException { Number: 547 })
+        catch (DbUpdateException exception) when (
+            exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.ForeignKeyViolation })
         {
             if (!await VisibleTickets().AnyAsync(ticket => ticket.Id == id, cancellationToken))
             {

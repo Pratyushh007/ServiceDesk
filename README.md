@@ -1,37 +1,41 @@
 # ServiceDesk
 
 ServiceDesk is an IT ticket management application with an Angular frontend,
-an ASP.NET Core API, and SQL Server persistence through Entity Framework Core.
-See the [project parts](docs/PROJECT-PARTS.md) for the development sequence,
-architecture, and local demonstration.
+an ASP.NET Core API, and PostgreSQL persistence through Entity Framework Core
+on the `demo/postgresql` branch. The `main` branch contains the SQL Server
+capstone described in the [project parts](docs/PROJECT-PARTS.md).
 
 ## Run the API locally
 
 For a single image that serves the Angular frontend and API together, see the
 [deployment guide](docs/DEPLOYMENT.md).
 
-Use .NET 10 and SQL Server LocalDB. From the repository root, restore the
-dependencies and apply the migrations. Run the signing-key lines once per
-development computer. Keep your existing key if one is already configured.
+Use .NET 10 and an empty PostgreSQL database. From the repository root, restore
+the dependencies and apply the migrations. Run the secret setup once per
+development computer. Keep your existing demo signing key if configured.
 
 ```powershell
 dotnet tool restore
 dotnet restore
 $key = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-@{ 'Jwt:SigningKey' = $key } | ConvertTo-Json -Compress | dotnet user-secrets set --project src/ServiceDesk.Api
-Remove-Variable key
+$connection = Read-Host 'PostgreSQL connection string' -AsSecureString
+@{
+    'Jwt:SigningKey' = $key
+    'ConnectionStrings:ServiceDesk' = [System.Net.NetworkCredential]::new('', $connection).Password
+} | ConvertTo-Json -Compress | dotnet user-secrets set --project src/ServiceDesk.Api
+Remove-Variable key, connection
 dotnet ef database update --project src/ServiceDesk.Api -- --environment Development
 dotnet run --project src/ServiceDesk.Api
 ```
 
-The local API listens on `http://localhost:5018`. Use
+The local API listens on `http://localhost:5018`. Stop the capstone server or
+use the Docker instructions if that port is already in use. Use
 `POST /api/auth/register` to create a standard user and `POST /api/auth/login`
 to get a 30-minute JWT. Send it in the `Authorization: Bearer <token>` header.
 `POST /api/auth/admin/login` also requires membership in the Admin role.
 Standard users create and read their own tickets. Admins see all tickets and
 can change their status, categorize them, and delete them. The original title
-and description are locked after submission. Tickets created before sign-in was
-added remain visible to admins.
+and description are locked after submission.
 
 ## Run the Angular frontend
 
@@ -70,11 +74,13 @@ uppercase and lowercase letters, a number, and a symbol.
 
 ```powershell
 $env:Admin__Email = Read-Host 'Admin email'
-$env:Admin__Password = Read-Host 'Admin password' -MaskInput
+$password = Read-Host 'Admin password' -AsSecureString
+$env:Admin__Password = [System.Net.NetworkCredential]::new('', $password).Password
 try {
     dotnet run --project src/ServiceDesk.Api -- --seed-admin=true
 } finally {
-    Remove-Item Env:Admin__Email, Env:Admin__Password
+    Remove-Item Env:Admin__Email, Env:Admin__Password -ErrorAction SilentlyContinue
+    Remove-Variable password
 }
 ```
 

@@ -19,5 +19,5 @@ public sealed class Ticket
     public DateTimeOffset CreatedAtUtc { get; private set; } = DateTimeOffset.UtcNow;
 
     [JsonIgnore]
-    public byte[] RowVersion { get; private set; } = [];
+    public uint RowVersion { get; private set; }
 }
